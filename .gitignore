@@ -1,3 +1,4 @@
 
 # do not upload expression data
 data/RNAseqWTRad21KOMacrophages.RData
+.Rproj.user
