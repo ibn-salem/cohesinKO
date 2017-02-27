@@ -1,7 +1,18 @@
 
 # do not upload expression data
-data/RNAseqWTRad21KOMacrophages.RData
+data/ICL/RNAseqWTRad21KOMacrophages.RData
+data/ICL/*
+
+# ignore raw data files
+data/Dixon2012/*
+data/Rao2014/*
+data/Rudan2015/*
+data/UCSC/*
+
+# ignore bin directory
+bin/*
 
 # irnoge some R related files
 .Rproj.user
 .Rhistory
+
