@@ -23,6 +23,7 @@ mkdir -p ${BIN}
 # UCSC liftover chains
 mkdir -p UCSC
 wget -P UCSC http://hgdownload.cse.ucsc.edu/goldenPath/mm9/liftOver/mm9ToMm10.over.chain.gz
+
 gunzip UCSC/*.gz
 
 # download liftOver tool from UCSC:
@@ -121,4 +122,15 @@ wget -P Rudan2015 http://www.cell.com/cms/attachment/2026643989/2045457290/mmc2.
 # copied file manually to 
 # ICL/RNAseqWTRad21KOMacrophages.RData
 
+#=======================================================================
+# GRBs 
+#=======================================================================
+# manually copy GRB data to:
+# data/Harmston2016/mm9_galGal4_70_50.final.bed
 
+# liftOver to mm10
+${BIN}/liftOver \
+      Harmston2016/mm9_galGal4_70_50.final.bed \
+      UCSC/mm9ToMm10.over.chain \
+      Harmston2016/mm9_galGal4_70_50.final.bed.mm10.bed \
+      Harmston2016/mm9_galGal4_70_50.final.bed_unmapped.bed
