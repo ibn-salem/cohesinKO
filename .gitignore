@@ -2,6 +2,7 @@
 # do not upload expression data
 data/ICL/RNAseqWTRad21KOMacrophages.RData
 data/ICL/*
+data/Harmston2016/*
 
 # ignore raw data files
 data/Dixon2012/*
