@@ -21,6 +21,7 @@ DIXON_MOUSE_TAD_FILES = c(
   Dixon_mESC="data/Dixon2012/mouse.mESC.mm9.bed.mm10.bed",
   Dixon_cortex="data/Dixon2012/mouse.cortex.mm9.bed.mm10.bed"
 )
+GRB_FILE="data/Harmston2016/mm9_galGal4_70_50.final.bed.mm10.bed"
 
 
 #=======================================================================
@@ -105,21 +106,45 @@ DixonTADs <- lapply(DIXON_MOUSE_TAD_FILES, rtracklayer::import.bed, seqinfo=seqI
 #-------------------------------------------------------------------------------
 Rao_TADs <- rtracklayer::import.bed(RAO_MOUSE_TAD_FILE, seqinfo=seqinfo)
 
+#-------------------------------------------------------------------------------
+# combine all TADs
+#-------------------------------------------------------------------------------
+allTADs = GRangesList(
+  "Rao_CH12-LX"=Rao_TADs,
+  "Dixon2012_mESC"=DixonTADs[["Dixon_mESC"]],
+  "Dixon2012_cortex"=DixonTADs[["Dixon_cortex"]],
+  "VietriRudan_liver"=Rudan_liver_TAD
+)
+
+tadSource <- data.frame(
+  study=c("Rao2014", "Dixon2012", "Dixon2012", "VietriRudan2015"),
+  tissue=c("CH12", "mESC", "cortex", "liver")
+)
+
+#-------------------------------------------------------------------------------
+# get boundaries of TADs
+#-------------------------------------------------------------------------------
+allBoundaries <- lapply(allTADs, getBoundaries)
+
 
 #-------------------------------------------------------------------------------
 # GRB-TADs
 #-------------------------------------------------------------------------------
 
+# parse GRBs
+GRB <- rtracklayer::import.bed(GRB_FILE)
 
-#-------------------------------------------------------------------------------
-# combine all TADs
-#-------------------------------------------------------------------------------
-allTADs = list(
-  "VietriRudan_liver"=speciesTADs[["mmusculus"]],
-  "Rao_CH12-LX"=RaoTADs
-)
-allTADs <- c(allTADs, DixonTADs)
+# screen TADs for overlap with GRBs
+allTADs <- lapply(allTADs, screen.grbs, GRB)
+
+GRB_TADs <- lapply(allTADs, function(tad) tad[tad$class == "GRB"] )
+nonGRB_TADs <- lapply(allTADs, function(tad) tad[tad$class == "nonGRB"] )
+
+# build list with all tads, all GRB TADs and all non-GRB tads
+tadList <- c(allTADs, GRB_TADs, nonGRB_TADs)
+
+# add GRB to metadata
+tadSource <- tadSource[rep(1:nrow(tadSource), 3), ]
+tadSource$GRB <- rep(c("all", "GRB", "nonGRB"), each=nrow(tadSource))
 
 
-# get boundaries
-allBoundaries <- lapply(allTADs, getBoundaries)
