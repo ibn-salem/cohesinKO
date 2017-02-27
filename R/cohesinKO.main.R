@@ -12,7 +12,7 @@ require(ggplot2)
 # get gene pairs
 #===============================================================================
 txdb <- TxDb.Mmusculus.UCSC.mm10.ensGene
-seqinfo <- seqinfo(txdb)
+seqInfo <- seqinfo(txdb)
 
 #-------------------------------------------------------------------------------
 # Get protein coding genes from ENSEMBL
