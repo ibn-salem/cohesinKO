@@ -19,6 +19,8 @@ seqinfo <- seqinfo(txdb)
 #-------------------------------------------------------------------------------
 allGenesGR <- genes(txdb)
 
+ensemblMouse = useMart(host="grch37.ensembl.org", biomart="ENSEMBL_MART_ENSEMBL",dataset="mmusculus_gene_ensembl")
+
 protCodingENSG <- getBM(attributes="ensembl_gene_id", 
                         mart=ensemblMouse, 
                         filters=c("status", "biotype"), 
