@@ -6,13 +6,22 @@
 #=======================================================================
 
 require(reshape2)	# for melt() and cast()
-
+require(gdata)    # to parse .xlsx files (See: http://www.r-bloggers.com/read-excel-files-from-r/)
+require(TxDb.Mmusculus.UCSC.mm10.ensGene) # for seqifno object
+require(rtracklayer)  # to import bed files as GRanges object with import()
 
 #=======================================================================
 # parameters and input data files
 #=======================================================================
 
-COHESIN_KO_FILE="data/RNAseqWTRad21KOMacrophages.RData"
+COHESIN_KO_FILE <- "data/ICL/RNAseqWTRad21KOMacrophages.RData"
+RUDAN_TAD_FILE <- "data/Rudan2015/mmc2.xlsx"
+RAO_MOUSE_TAD_FILE <- "data/Rao2014/GSE63525_CH12-LX_Arrowhead_domainlist.txt.bed.mm9.bed.mm10.bed"
+DIXON_MOUSE_TAD_FILES = c(
+  Dixon_mESC="data/Dixon2012/mouse.mESC.mm9.bed.mm10.bed",
+  Dixon_cortex="data/Dixon2012/mouse.cortex.mm9.bed.mm10.bed"
+)
+
 
 #=======================================================================
 # Parse data and reformat
@@ -70,3 +79,47 @@ expCoDFlist <- list("expWT"=expWT,
 #~ names(repKO)
 #~ cohesinEnv$colData
 #~ repKO["ENSMUSG00000000028", ]
+
+#===============================================================================
+# parse TAD data
+#===============================================================================
+seqInfo <- seqinfo(TxDb.Mmusculus.UCSC.mm10.ensGene)
+
+#-------------------------------------------------------------------------------
+# Rudan et al. 2015 mouse liver TADs
+#-------------------------------------------------------------------------------
+
+# parse bed-like file from .xls table
+df <- gdata::read.xls(RUDAN_TAD_FILE, sheet=1)
+
+# convert to GRanges object with 1-based coordinates
+Rudan_liver_TAD <-  GRanges(df[,1], IRanges(df[,2]+1, df[,3]), seqinfo=seqInfo)
+
+#-------------------------------------------------------------------------------
+# Dixon et 2012  TADs
+#-------------------------------------------------------------------------------
+DixonTADs <- lapply(DIXON_MOUSE_TAD_FILES, rtracklayer::import.bed, seqinfo=seqInfo)
+
+#-------------------------------------------------------------------------------
+# Rudan et al. 2015 mouse liver TADs
+#-------------------------------------------------------------------------------
+Rao_TADs <- rtracklayer::import.bed(RAO_MOUSE_TAD_FILE, seqinfo=seqinfo)
+
+
+#-------------------------------------------------------------------------------
+# GRB-TADs
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# combine all TADs
+#-------------------------------------------------------------------------------
+allTADs = list(
+  "VietriRudan_liver"=speciesTADs[["mmusculus"]],
+  "Rao_CH12-LX"=RaoTADs
+)
+allTADs <- c(allTADs, DixonTADs)
+
+
+# get boundaries
+allBoundaries <- lapply(allTADs, getBoundaries)
