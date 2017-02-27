@@ -44,7 +44,8 @@ pairDF$dist <- abs(pairDF$dist) / 1000
 #-------------------------------------------------------------------------------
 # Mouse paralog gene pairs
 #-------------------------------------------------------------------------------
-paralogParisMouseAttr = c("ensembl_gene_id", "mmusculus_paralog_ensembl_gene", 
+paralogParisMouseAttr = c("ensembl_gene_id", 
+                          "mmusculus_paralog_ensembl_gene", 
                           "mmusculus_paralog_perc_id", 
                           "mmusculus_paralog_perc_id_r1", 
                           "mmusculus_paralog_dn", 
@@ -69,7 +70,40 @@ paralogPairs <- data.frame(
 para <- containsGenePairs(pairDF, paralogPairs)
 
 pairDF[,"paralog"] <- containsGenePairs(pairDF, paralogPairs)
-pairDF[,"paralog"] <- factor(pairDF[,"paralog"], c(TRUE, FALSE), c("paralog", "non-paralog"))
+
+#-------------------------------------------------------------------------------
+# add sampled pairs with same distance distribution as paralogs
+#-------------------------------------------------------------------------------
+
+# get distance for paralog and non-paralog gene pairs
+distPara <- pairDF[pairDF$paralog, "dist"]
+distNonPara <- pairDF[!pairDF$paralog, "dist"]
+
+# devide distance range in 50 bins a 20kb
+distBreaks <- seq(0, 1000, 20)
+
+# get samplig weights according to observed distance in paralogs
+sampWeights <- weightsByBin(distPara, distNonPara, distBreaks)
+
+# sample from non-paralog pairs with weights
+sampIdx <- sample(
+    which(!pairDF$paralog), 
+    size=10000,
+    prob=sampWeights,
+    replace=FALSE)
+
+# add group column to pairDF data.frame
+pairDF[,"group"] <- ifelse(pairDF[,"paralog"], "paralog", "non-paralog")
+pairDF[sampIdx, "group"] <- "sampled"
+pairDF[,"group"] <- factor(pairDF[,"group"], c("paralog", "sampled", "non-paralog"))
+
+
+# check histogram of distances for all goups
+ggplot(pairDF, aes(x=dist, fill=group)) + 
+  geom_histogram(breaks=distBreaks) +
+  facet_grid(group~., margins=TRUE, scales="free_y") + 
+  theme_bw()
+
 
 # create a single data frame for all gene pairs with the following columns
 # 
