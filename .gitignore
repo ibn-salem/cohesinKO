@@ -1,4 +1,7 @@
 
 # do not upload expression data
 data/RNAseqWTRad21KOMacrophages.RData
+
+# irnoge some R related files
 .Rproj.user
+.Rhistory
