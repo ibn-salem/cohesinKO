@@ -60,7 +60,6 @@ lexpDF <- melt(expDF, id=2, measure.vars=3:ncol(expDF))
 llexpDF <- cbind(lexpDF, cd[as.character(lexpDF$variable),])
 
 # compute mean of replicates
-
 repKO <- dcast(subset(llexpDF, Genotype=="Rad21KO"), ensembl_gene_id ~ Treatment + Time_hrs, mean, value.var="value", na.rm=TRUE)
 repWT <- dcast(subset(llexpDF, Genotype=="WT"), ensembl_gene_id ~ Treatment + Time_hrs, mean, value.var="value", na.rm=TRUE)
 
@@ -75,6 +74,13 @@ expCoDFlist <- list("expWT"=expWT,
                     "expKO"=expKO,
                     "repWT"=repWT,
                     "repKO"=repKO
+)
+
+expSource <- data.frame(
+  tissue=rep("Macrophages", 4),
+  genotype=c("WT", "Rad21KO", "WT", "Rad21KO"),
+  groups=c("treatment.time.replicate", "treatment.time.replicate", "treatment.time", "treatment.time"),
+  stringsAsFactors=FALSE
 )
 
 # test that mean works 
