@@ -145,10 +145,12 @@ tadList <- c(allTADs, GRB_TADs, nonGRB_TADs)
 # add GRB to metadata
 tadSource <- data.frame(
   study=c("Rao2014", "Dixon2012", "Dixon2012", "VietriRudan2015"),
-  tissue=c("CH12", "mESC", "cortex", "liver")
+  tissue=c("CH12", "mESC", "cortex", "liver"),
+  stringsAsFactors=FALSE
 )
 
 tadSource <- tadSource[rep(1:length(allTADs), 3), ]
 tadSource$GRB <- rep(c("all", "GRB", "nonGRB"), each=length(allTADs))
+
 
 
