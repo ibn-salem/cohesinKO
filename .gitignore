@@ -17,3 +17,5 @@ bin/*
 .Rproj.user
 .Rhistory
 
+# ignore results
+results/*
