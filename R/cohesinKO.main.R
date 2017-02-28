@@ -135,7 +135,28 @@ for(i in 1:length(tadList)){
   
 }
 
-# create a single data frame for all gene pairs with the following columns
+#-------------------------------------------------------------------------------
+# add expression correlation
+#-------------------------------------------------------------------------------
+
+# iterate over each expression data set
+for(i in 1:length(expCoDFlist)){
+  
+  expDF <- expCoDFlist[[i]]
+  
+  # select matching rows in same order as in genesGR
+  subExpDF <- expDF[match(names(genesGR), rownames(expDF)),]
+  
+  # compute correlation for all pairs
+  expCor <- applyToClosePairs(pairDF, genesGR, subExpDF, fun=cor, maxDist=10^6)
+  
+  dataname <- paste(expSource[i,], collapse="|")
+  pairDF[,paste0("expCor_", dataname)] <- expCor
+   
+}
+
+
+# create a single (tidy) data frame for all gene pairs with the following columns
 # 
 # group (paralog, sampled, all)
 # dist (abs distance in kb)
