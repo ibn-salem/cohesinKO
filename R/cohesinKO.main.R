@@ -107,6 +107,33 @@ ggplot(pairDF, aes(x=dist, fill=group)) +
   facet_grid(group~., margins=TRUE, scales="free_y") + 
   theme_bw()
 
+#-------------------------------------------------------------------------------
+# add TAD annotation
+#-------------------------------------------------------------------------------
+
+# get range between tss of gnes as GRanges object
+pairGR <- getPairAsGR(pairDF, genesGR)
+
+# iterate over each TAD data set
+for(i in 1:length(tadList)){
+  
+  # get annotation column name
+  colname <- paste(as.character(tadSource[i,]), collapse = "|")
+  
+  # check whether paired genes are in the same TAD
+  inTAD <- countOverlaps(pairGR, tadList[[i]], type="within") >= 1
+  pairDF[,paste0("TAD_", colname)] <- factor(inTAD, 
+                                             c(TRUE, FALSE), 
+                                             c("Same TAD", "Not same TAD"))
+  
+  # check if pairs cross a TAD boundary
+  crossBoundary <- countOverlaps(pairGR, boundaryList[[i]]) >= 1
+  pairDF[,paste0("Boundary_", colname)] <- factor(
+    inTAD, 
+    c(TRUE, FALSE), 
+    c("Cross Boundary", "Not cross Boundary"))
+  
+}
 
 # create a single data frame for all gene pairs with the following columns
 # 
