@@ -121,12 +121,6 @@ allTADs = GRangesList(
 )
 
 #-------------------------------------------------------------------------------
-# get boundaries of TADs
-#-------------------------------------------------------------------------------
-allBoundaries <- lapply(allTADs, getBoundaries)
-
-
-#-------------------------------------------------------------------------------
 # GRB-TADs
 #-------------------------------------------------------------------------------
 
@@ -142,7 +136,15 @@ nonGRB_TADs <- lapply(allTADs, function(tad) tad[tad$class == "nonGRB"] )
 # build list with all tads, all GRB TADs and all non-GRB tads
 tadList <- c(allTADs, GRB_TADs, nonGRB_TADs)
 
-# add GRB to metadata
+#-------------------------------------------------------------------------------
+# get boundaries of TADs
+#-------------------------------------------------------------------------------
+boundaryList <- lapply(tadList, getBoundaries)
+
+#-------------------------------------------------------------------------------
+# get meta data of TAD sources
+#-------------------------------------------------------------------------------
+
 tadSource <- data.frame(
   study=c("Rao2014", "Dixon2012", "Dixon2012", "VietriRudan2015"),
   tissue=c("CH12", "mESC", "cortex", "liver"),
