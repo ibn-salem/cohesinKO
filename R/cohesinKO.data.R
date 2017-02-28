@@ -161,4 +161,16 @@ tadSource <- tadSource[rep(1:length(allTADs), 3), ]
 tadSource$GRB <- rep(c("all", "GRB", "nonGRB"), each=length(allTADs))
 
 
+#-------------------------------------------------------------------------------
+# save as .Rdata file
+#-------------------------------------------------------------------------------
+dir.create("results")
+save(
+  expCoDFlist, 
+  expSource, 
+  tadList,
+  boundaryList,
+  tadSource,
+  file="results/Exp_and_TAD_data.Rdata"
+  )
 
