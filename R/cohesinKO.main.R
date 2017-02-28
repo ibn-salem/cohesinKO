@@ -6,10 +6,13 @@
 require(genepair) # instally by: devtools::install_github("ibn-salem/genepair")
 require(biomaRt)  # to download data from ENSMBL
 require(TxDb.Mmusculus.UCSC.mm10.ensGene) # for mm10 gene models from ensembl
-require(ggplot2)
+require(tidyr)    # for gather() function
+require(dplyr)    # for matches() function
+require(ggplot2)  # for plotting
 
 # load data 
-source("R/cohesinKO.data.R")
+# source("R/cohesinKO.data.R")
+load("results/Exp_and_TAD_data.Rdata")
 
 #===============================================================================
 # get gene pairs
@@ -101,11 +104,11 @@ pairDF[sampIdx, "group"] <- "sampled"
 pairDF[,"group"] <- factor(pairDF[,"group"], c("paralog", "sampled", "non-paralog"))
 
 
-# check histogram of distances for all goups
-ggplot(pairDF, aes(x=dist, fill=group)) + 
-  geom_histogram(breaks=distBreaks) +
-  facet_grid(group~., margins=TRUE, scales="free_y") + 
-  theme_bw()
+# # check histogram of distances for all goups
+# ggplot(pairDF, aes(x=dist, fill=group)) + 
+#   geom_histogram(breaks=distBreaks) +
+#   facet_grid(group~., margins=TRUE, scales="free_y") + 
+#   theme_bw()
 
 #-------------------------------------------------------------------------------
 # add TAD annotation
@@ -155,9 +158,17 @@ for(i in 1:length(expCoDFlist)){
    
 }
 
+#-------------------------------------------------------------------------------
+# save pairDF 
+#-------------------------------------------------------------------------------
+save(pairDF, file="results/pairDF.Rdata")
 
-# create a single (tidy) data frame for all gene pairs with the following columns
-# 
+#-------------------------------------------------------------------------------
+# create a single (tidy) data frame for all pairs with the following columns
+#-------------------------------------------------------------------------------
+
+# Aim for the folowing columns:
+#
 # group (paralog, sampled, all)
 # dist (abs distance in kb)
 # TAD ( sameTAD or notSameTAD)
@@ -166,4 +177,14 @@ for(i in 1:length(expCoDFlist)){
 # expCor (Expression correlation)
 # expSource (cell-type_condition_rep..)
 
+# use tidyr::gather() function as nicely descibed here:
+# http://r4ds.had.co.nz/tidy-data.html#gathering
 
+
+tidyDF <- pairDF %>%
+  gather(key, value, matches("TAD_.|Boundary_.")) %>%
+  extract(key, c("type", "tadSource"),  "([[:alnum:]]+)_(.+)") %>%
+  spread(key=type, value=value) %>%
+  gather(expSource, expCor, matches("expCor_."))
+
+save(tidyDF, file="results/tidyDF.Rdata")
