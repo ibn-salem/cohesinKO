@@ -10,6 +10,9 @@ require(gdata)    # to parse .xlsx files (See: http://www.r-bloggers.com/read-ex
 require(TxDb.Mmusculus.UCSC.mm10.ensGene) # for seqifno object
 require(rtracklayer)  # to import bed files as GRanges object with import()
 
+source("R/GRanges.functions.R")
+source("R/screen.grbs.R")
+
 #=======================================================================
 # parameters and input data files
 #=======================================================================
@@ -84,7 +87,8 @@ expCoDFlist <- list("expWT"=expWT,
 #===============================================================================
 # parse TAD data
 #===============================================================================
-seqInfo <- seqinfo(TxDb.Mmusculus.UCSC.mm10.ensGene)
+txdb <- TxDb.Mmusculus.UCSC.mm10.ensGene
+seqInfo <- seqinfo(txdb)
 
 #-------------------------------------------------------------------------------
 # Rudan et al. 2015 mouse liver TADs
@@ -104,7 +108,7 @@ DixonTADs <- lapply(DIXON_MOUSE_TAD_FILES, rtracklayer::import.bed, seqinfo=seqI
 #-------------------------------------------------------------------------------
 # Rudan et al. 2015 mouse liver TADs
 #-------------------------------------------------------------------------------
-Rao_TADs <- rtracklayer::import.bed(RAO_MOUSE_TAD_FILE, seqinfo=seqinfo)
+Rao_TADs <- rtracklayer::import.bed(RAO_MOUSE_TAD_FILE, seqinfo=seqInfo)
 
 #-------------------------------------------------------------------------------
 # combine all TADs
@@ -114,11 +118,6 @@ allTADs = GRangesList(
   "Dixon2012_mESC"=DixonTADs[["Dixon_mESC"]],
   "Dixon2012_cortex"=DixonTADs[["Dixon_cortex"]],
   "VietriRudan_liver"=Rudan_liver_TAD
-)
-
-tadSource <- data.frame(
-  study=c("Rao2014", "Dixon2012", "Dixon2012", "VietriRudan2015"),
-  tissue=c("CH12", "mESC", "cortex", "liver")
 )
 
 #-------------------------------------------------------------------------------
@@ -144,7 +143,12 @@ nonGRB_TADs <- lapply(allTADs, function(tad) tad[tad$class == "nonGRB"] )
 tadList <- c(allTADs, GRB_TADs, nonGRB_TADs)
 
 # add GRB to metadata
-tadSource <- tadSource[rep(1:nrow(tadSource), 3), ]
-tadSource$GRB <- rep(c("all", "GRB", "nonGRB"), each=nrow(tadSource))
+tadSource <- data.frame(
+  study=c("Rao2014", "Dixon2012", "Dixon2012", "VietriRudan2015"),
+  tissue=c("CH12", "mESC", "cortex", "liver")
+)
+
+tadSource <- tadSource[rep(1:length(allTADs), 3), ]
+tadSource$GRB <- rep(c("all", "GRB", "nonGRB"), each=length(allTADs))
 
 
