@@ -8,6 +8,9 @@ require(biomaRt)  # to download data from ENSMBL
 require(TxDb.Mmusculus.UCSC.mm10.ensGene) # for mm10 gene models from ensembl
 require(ggplot2)
 
+# load data 
+source("R/cohesinKO.data.R")
+
 #===============================================================================
 # get gene pairs
 #===============================================================================
