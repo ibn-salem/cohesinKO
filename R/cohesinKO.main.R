@@ -132,7 +132,7 @@ for(i in 1:length(tadList)){
   # check if pairs cross a TAD boundary
   crossBoundary <- countOverlaps(pairGR, boundaryList[[i]]) >= 1
   pairDF[,paste0("Boundary_", colname)] <- factor(
-    inTAD, 
+    crossBoundary, 
     c(TRUE, FALSE), 
     c("Cross Boundary", "Not cross Boundary"))
   
