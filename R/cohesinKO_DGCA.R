@@ -73,14 +73,37 @@ dd_pairs = dcTopPairs(dcPairs_res, nPairs = 100, classify = TRUE)
 # Since heatmaps are best visualized with a small number of genes, we first filter the genes down to a more manageable number by selecting the    genes with the highest medians and coefficients of variation.
 # Note that if you want to alter the text size in the heatmap, you can set the cexRow and cexCol arguments, as indicated above.
 
-macrophages_top =  filterGenes(ReadCounts.macrophages.filtered, 
-  filterTypes = c("central", "dispersion"), filterCentralPercentile = 0.75, 
-  filterDispersionPercentile = 0.75)
+# macrophages_top =  filterGenes(ReadCounts.macrophages.filtered, 
+#  filterTypes = c("central", "dispersion"), filterCentralPercentile = 0.75, 
+#  filterDispersionPercentile = 0.75)
 
-ddcor_res = ddcorAll(inputMat = macrophages_top, design = design_mat,
-  compare = c("rad21ko", "wt"),
-  adjust = "none", heatmapPlot = TRUE, nPerm = 0, nPairs = "all")
+# ddcor_res = ddcorAll(inputMat = macrophages_top, design = design_mat,
+#  compare = c("rad21ko", "wt"),
+#  adjust = "none", heatmapPlot = TRUE, nPerm = 0, nPairs = "all")
 
 
+
+
+#=================================================================================================================================================
+# Examples of paralog genes that are in the same (sub)TAD and show interesting, opposing, correlation patterns between the WT and the cohesinKO 
+#           
+#
+#=================================================================================================================================================
+
+# 1. Ms4a4d::Ms4a4b (Distance between TSSs of genes 93 kb)
+plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,
+  +     compare = c("rad21ko", "wt"), geneA = "Ms4a4d", geneB = "Ms4a4b")
+
+# 2. Serpinf1::Serpinf2 (Distance between TSSs of genes 17 kb)
+plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,
+  +     compare = c("rad21ko", "wt"), geneA = "Serpinf1", geneB = "Serpinf2")
+
+# 3. Ppp1r9b::Samd14 (Distance between TSSs of genes 18 kb)
+plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,
+  +     compare = c("rad21ko", "wt"), geneA = "Ppp1r9b", geneB = "Samd14")
+
+# 4. Ms4a6b::Ms4a6c (Distance between TSSs of genes 47 kb) from almost perfect correlation to negative!
+plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,
+  +     compare = c("rad21ko", "wt"), geneA = "Ms4a6b", geneB = "Ms4a6c")
 
 
