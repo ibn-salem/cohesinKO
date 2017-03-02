@@ -85,7 +85,7 @@ dd_pairs = dcTopPairs(dcPairs_res, nPairs = 100, classify = TRUE)
 
 
 #=================================================================================================================================================
-# Examples of paralog genes that are in the same (sub)TAD and show interesting, opposing, correlation patterns between the WT and the cohesinKO 
+# Examples of paralog genes that are in the same contact domain and show interesting, opposing, correlation patterns between the WT and the cohesinKO 
 #           
 #
 #=================================================================================================================================================
@@ -105,5 +105,24 @@ plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,
 # 4. Ms4a6b::Ms4a6c (Distance between TSSs of genes 47 kb) from almost perfect correlation to negative!
 plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,
   +     compare = c("rad21ko", "wt"), geneA = "Ms4a6b", geneB = "Ms4a6c")
+
+# 5. Rab7l1::5430435G22Rik (Distance between TSSs of genes ±178 kb)
+plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,compare = c("rad21ko", "wt"), geneA = "Rab7l1", geneB = "5430435G22Rik")
+
+
+#=================================================================================================================================================
+# Examples of paralog genes that are in the same contact domain and are largely unaffected between the WT and the cohesinKO 
+#           
+#
+#=================================================================================================================================================
+
+# Slc2a6::Slc2a8
+plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,compare = c("rad21ko", "wt"), geneA = "Slc2a6", geneB = "Slc2a8")
+
+# Gstm7::Gstm2
+plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,compare = c("rad21ko", "wt"), geneA = "Gstm7", geneB = "Gstm2")
+
+# Cxcl5::Cxcl3
+plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,compare = c("rad21ko", "wt"), geneA = "Cxcl5", geneB = "Cxcl3")
 
 
