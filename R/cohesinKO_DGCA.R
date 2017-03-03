@@ -126,3 +126,18 @@ plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,compare
 plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,compare = c("rad21ko", "wt"), geneA = "Cxcl5", geneB = "Cxcl3")
 
 
+# Correlation analysis for H2H bidirectional gene pairs
+bidir_gene_pairs <- read.csv("~/Dropbox/PostDoc/Rad21KOGenePairs/Data/BidirectionalGenePairsMouse/bidirectional_gene_pairs_mouse.csv")
+bidir_gene_pairs_genes = unique(unlist(bidir_gene_pairs))
+mydf_subset <- na.omit(ReadCounts.macrophages.filtered[bidir_gene_pairs_genes, ])  #filter expression matrix and take only those genes
+mydf_subset_ddcor_res = ddcorAll(mydf_subset, design_mat, compare = c("rad21ko", "wt"), nPerm = 0, adjust = "none")
+
+colnames(bidir_gene_pairs) = c("Gene1","Gene2")
+corr_bidir_gene_pairs <- dplyr::inner_join(bidir_gene_pairs, mydf_subset_ddcor_res) #Take specifically those pairs
+
+#Perform t-test
+t.test(corr_bidir_gene_pairs$rad21ko_cor, corr_bidir_gene_pairs$wt_cor)
+
+
+
+
