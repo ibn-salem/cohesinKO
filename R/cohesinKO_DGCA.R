@@ -125,8 +125,12 @@ plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,compare
 # Cxcl5::Cxcl3
 plotCors(inputMat = ReadCounts.macrophages.filtered, design = design_mat,compare = c("rad21ko", "wt"), geneA = "Cxcl5", geneB = "Cxcl3")
 
+#=================================================================================================================================================
+#              Correlation analysis for H2H bidirectional gene pairs
+#           
+#
+#=================================================================================================================================================
 
-# Correlation analysis for H2H bidirectional gene pairs
 bidir_gene_pairs <- read.csv("~/Dropbox/PostDoc/Rad21KOGenePairs/Data/BidirectionalGenePairsMouse/bidirectional_gene_pairs_mouse.csv")
 bidir_gene_pairs_genes = unique(unlist(bidir_gene_pairs))
 mydf_subset <- na.omit(ReadCounts.macrophages.filtered[bidir_gene_pairs_genes, ])  #filter expression matrix and take only those genes
@@ -137,6 +141,20 @@ corr_bidir_gene_pairs <- dplyr::inner_join(bidir_gene_pairs, mydf_subset_ddcor_r
 
 #Perform t-test
 t.test(corr_bidir_gene_pairs$rad21ko_cor, corr_bidir_gene_pairs$wt_cor)
+
+# Examples
+# Top ten gene pairs in terms of zScore differences (zScoreDiff) between wt_cor and rad21ko_cor and the opposite
+topten_wtrad21ko <- head(dplyr::arrange(corr_bidir_gene_pairs, desc(zScoreDiff)),10)
+topten_rad21kowt <- head(dplyr::arrange(corr_bidir_gene_pairs, zScoreDiff),10)
+
+# Apex1::Osgep (193 nt)
+# Nsdhl::Cetn2 (177 nt)
+# Gnpat::2810004N23Rik (96 nt)
+# Hira::Mrpl40 (634 nt)
+
+
+
+
 
 
 
