@@ -181,10 +181,31 @@ save(pairDF, file="results/pairDF.Rdata")
 # http://r4ds.had.co.nz/tidy-data.html#gathering
 
 
+# transform pairDF data into tidyDF by the follwing opperations
+# - remove pralog column
+# - combine g1 and g2 to unique gpID column
+# - put gpID as first column
+# - combine TAD_ and Boundary_ column
+# - separate type (TAD/Boundary) and TAD source
+# - spread type (TAD/Boundary) for diffrent sources in single column
+# - separate TADsource into study, tissue, and TADtype column
+# - make single column for expCor and gather by expSource column
+# - remove prefix "expCor_" from expSource lables
+# - separate expSource into cell, genotype, and condtion column
 tidyDF <- pairDF %>%
+  mutate(paralog = NULL) %>%
+  mutate(gpID = paste(g1, g2, sep="_")) %>%
+  mutate(g1 = NULL, g2 = NULL)  %>%
+  select(gpID, everything()) %>%
   gather(key, value, matches("TAD_.|Boundary_.")) %>%
   extract(key, c("type", "tadSource"),  "([[:alnum:]]+)_(.+)") %>%
   spread(key=type, value=value) %>%
-  gather(expSource, expCor, matches("expCor_."))
+  separate(col=tadSource, into=c("study", "tissue", "TADtype")) %>%
+  gather(expSource, expCor, matches("expCor_.")) %>%
+  mutate(expSource = gsub("^expCor_", "", expSource)) %>%
+  separate(expSource, c("cell", "genotype", "conditions"), sep="[/|]")
 
+# save tidyDF
 save(tidyDF, file="results/tidyDF.Rdata")
+
+
