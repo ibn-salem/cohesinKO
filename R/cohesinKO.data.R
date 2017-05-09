@@ -5,10 +5,10 @@
 #
 #=======================================================================
 
-require(reshape2)	# for melt() and cast()
 require(gdata)    # to parse .xlsx files (See: http://www.r-bloggers.com/read-excel-files-from-r/)
 require(TxDb.Mmusculus.UCSC.mm10.ensGene) # for seqifno object
 require(rtracklayer)  # to import bed files as GRanges object with import()
+require(tidyverse)  # for tidy data 
 
 source("R/GRanges.functions.R")
 source("R/screen.grbs.R")
@@ -33,54 +33,76 @@ GRB_FILE="data/Harmston2016/mm9_galGal4_70_50.final.bed.mm10.bed"
 
 # load R file:
 cohesinEnv <- new.env()
-load(COHESIN_KO_FILE, envi=cohesinEnv )
+load(COHESIN_KO_FILE, envir = cohesinEnv)
 
-expDF <- cohesinEnv$FPKM.macrophages
+# convert to tibble and drop non-unique ENSG rows
+expDF <- as.tibble(cohesinEnv$FPKM.macrophages) %>% 
+  distinct(ensembl_gene_id, .keep_all = TRUE)
+  
+# # set ENSG as row names and remove gene name and ID columns
+# row.names(expDF) <- expDF[,"ensembl_gene_id"]
+# rawExpDF <- expDF[,-(1:2)]
 
-# drop non-unique ENSG rows
-expDF <- expDF[!duplicated( expDF[,"ensembl_gene_id"]),]
+# parse column data and add sample name
+cd <- as.tibble(cohesinEnv$colData) %>% 
+  mutate(sample = names(expDF)[3:ncol(expDF)])
 
-# set ENSG as row names and remove gene name and ID columns
-row.names(expDF) <- expDF[,"ensembl_gene_id"]
-rawExpDF <- expDF[,-(1:2)]
+expKO <- expDF %>% 
+  select(1:2, 2 + which(cd$Genotype == "Rad21KO"))
 
-cd <- cohesinEnv$colData
-
-expKO <- subset(rawExpDF, select=row.names(cd)[cd$Genotype == "Rad21KO"])
-expWT <- subset(rawExpDF, select=row.names(cd)[cd$Genotype == "WT"])
+expWT <- expDF %>% 
+  select(1:2, 2 + which(cd$Genotype == "WT"))
 
 #=======================================================================
 # combine replicates
 #=======================================================================
 
 # melt data to only one value and one variable column
-lexpDF <- melt(expDF, id=2, measure.vars=3:ncol(expDF))
-
 # add metadata from colData
-llexpDF <- cbind(lexpDF, cd[as.character(lexpDF$variable),])
+lexpDF <- expDF %>% 
+  gather(3:ncol(expDF), key = "sample", value = "exp") %>% 
+  left_join(cd, by = "sample")
 
-# compute mean of replicates
-repKO <- dcast(subset(llexpDF, Genotype=="Rad21KO"), ensembl_gene_id ~ Treatment + Time_hrs, mean, value.var="value", na.rm=TRUE)
-repWT <- dcast(subset(llexpDF, Genotype=="WT"), ensembl_gene_id ~ Treatment + Time_hrs, mean, value.var="value", na.rm=TRUE)
+repDF <- lexpDF %>% 
+  # filter(Genotype == "Rad21KO") %>%
+  group_by(Genotype, ensembl_gene_id, Treatment, Time_hrs) %>% 
+  summarize(exp_mean = mean(exp, na.rm = TRUE)) %>% 
+  unite(Treatment, Time_hrs, col = "condition", sep = "_") %>% 
+  spread(condition, exp_mean) %>% 
+  left_join(select(expDF, ensembl_gene_id, external_gene_id),
+            by = "ensembl_gene_id") %>% 
+  select(ensembl_gene_id, external_gene_id, everything())
 
-# use ENSG as row.names and remove it from columns
-row.names(repKO) <- repKO$ensembl_gene_id
-row.names(repWT) <- repWT$ensembl_gene_id
 
-repKO$ensembl_gene_id <- NULL
-repWT$ensembl_gene_id <- NULL
+repKO <- repDF %>% 
+  filter(Genotype == "Rad21KO") %>% 
+  ungroup() %>% 
+  select(-Genotype)
 
-expCoDFlist <- list("expWT"=expWT,
-                    "expKO"=expKO,
-                    "repWT"=repWT,
-                    "repKO"=repKO
+
+repWT <- repDF %>% 
+  filter(Genotype == "WT") %>% 
+  ungroup() %>% 
+  select(-Genotype)
+
+# # use ENSG as row.names and remove it from columns
+# row.names(repKO) <- repKO$ensembl_gene_id
+# row.names(repWT) <- repWT$ensembl_gene_id
+# 
+# repKO$ensembl_gene_id <- NULL
+# repWT$ensembl_gene_id <- NULL
+
+expCoDFlist <- list("expWT" = expWT,
+                    "expKO" = expKO,
+                    "repWT" = repWT,
+                    "repKO" = repKO
 )
 
-expSource <- data.frame(
-  tissue=rep("Macrophages", 4),
-  genotype=c("WT", "Rad21KO", "WT", "Rad21KO"),
-  groups=c("treatment.time.replicate", "treatment.time.replicate", "treatment.time", "treatment.time"),
-  stringsAsFactors=FALSE
+expSource <- tibble(
+  name = names(expCoDFlist),
+  tissue = rep("Macrophages", 4),
+  genotype = c("WT", "Rad21KO", "WT", "Rad21KO"),
+  groups = c("treatment.time.replicate", "treatment.time.replicate", "treatment.time", "treatment.time")
 )
 
 # test that mean works 
@@ -114,7 +136,7 @@ DixonTADs <- lapply(DIXON_MOUSE_TAD_FILES, rtracklayer::import.bed, seqinfo=seqI
 #-------------------------------------------------------------------------------
 # Rudan et al. 2015 mouse liver TADs
 #-------------------------------------------------------------------------------
-Rao_TADs <- rtracklayer::import.bed(RAO_MOUSE_TAD_FILE, seqinfo=seqInfo)
+Rao_TADs <- rtracklayer::import.bed(RAO_MOUSE_TAD_FILE, seqinfo = seqInfo)
 
 #-------------------------------------------------------------------------------
 # combine all TADs
@@ -151,10 +173,10 @@ boundaryList <- lapply(tadList, getBoundaries)
 # get meta data of TAD sources
 #-------------------------------------------------------------------------------
 
-tadSource <- data.frame(
-  study=c("Rao2014", "Dixon2012", "Dixon2012", "VietriRudan2015"),
-  tissue=c("CH12", "mESC", "cortex", "liver"),
-  stringsAsFactors=FALSE
+tadSource <- tibble(
+  # name = names(allTADs),
+  study = c("Rao2014", "Dixon2012", "Dixon2012", "VietriRudan2015"),
+  tissue = c("CH12", "mESC", "cortex", "liver")
 )
 
 tadSource <- tadSource[rep(1:length(allTADs), 3), ]
@@ -164,13 +186,13 @@ tadSource$GRB <- rep(c("all", "GRB", "nonGRB"), each=length(allTADs))
 #-------------------------------------------------------------------------------
 # save as .Rdata file
 #-------------------------------------------------------------------------------
-dir.create("results")
+dir.create("results", showWarnings = FALSE)
 save(
   expCoDFlist, 
   expSource, 
   tadList,
   boundaryList,
   tadSource,
-  file="results/Exp_and_TAD_data.Rdata"
+  file = "results/Exp_and_TAD_data.Rdata"
   )
 
