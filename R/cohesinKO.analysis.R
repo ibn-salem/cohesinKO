@@ -8,8 +8,8 @@ require(tidyverse)    # to format, sumarize and plot tidy data
 
 source("R/colors.functions.R")
 
-COL_GROUP=brewer.pal(9, "Set1")[c(1,9,2,4)]   # for paralog vs. sampled genes
-COL_COMB=brewer.pal(12, "Paired")[c(5,6,7,8,1,2,3,4)]
+COL_GROUP = brewer.pal(9, "Set1")[c(1,9,2,4)]   # for paralog vs. sampled genes
+COL_COMB = brewer.pal(12, "Paired")[c(5,6,7,8,1,2,3,4)]
 pairedCols <- brewer.pal(12, "Paired")
 COL_GROUP_PAIRED <- c(pairedCols[c(6,5)], "azure4", "azure3", pairedCols[c(2,1,  10,9)])
 COL_ALL_GENOTYPE = brewer.pal(12, "Paired")[c(10,9)]
@@ -20,8 +20,8 @@ CONDITIONS="treatment.time"
 
 # define some parameters
 outPrefix <- ifelse(CONDITIONS == "treatment.time", 
-                    "results/v02.noRep", 
-                    "results/v02")
+                    "results/v03.avgRep", 
+                    "results/v03")
 
 
 # load data:
@@ -62,7 +62,7 @@ p <- ggplot(nDF, aes(x=group, y=n, fill=group)) +
   theme(text = element_text(size=15), axis.text.x = element_text(angle = 45, hjust = 1), 
         legend.position="none") +
   xlab("Groups") + ylab("# gene pairs")
-ggsave(p, file=paste0(outPrefix, ".n_by_group.hist.pdf"), w=3.5, h=7)
+ggsave(p, file=paste0(outPrefix, ".n_by_group.hist.pdf"), w = 3.5, h = 7)
 
 #===============================================================================
 # compare genomic distance by group
@@ -74,7 +74,6 @@ p <- ggplot(subDF, aes(x=dist, fill=group)) +
   theme_bw() + scale_fill_manual(values=COL_GROUP, guide=FALSE) +
   theme(text = element_text(size=15)) + 
   ylab("Gene pairs") + xlab("Genomic distance [kb]")
-  # geom_text(aes(x=0, y=0, label=paste0("n=",n)), data=nDF, hjust=-1, vjust=-1) + 
   
 ggsave(p, file=paste0(outPrefix, ".dist_by_group.hist.pdf"))
 
@@ -126,7 +125,7 @@ boundaryDF <- allDF %>%
   summarise(
     n = sum(Boundary == "Not cross Boundary"),
     N = length(Boundary),
-    percent=100*n/N
+    percent = 100*n/N
   )
 
 
@@ -183,7 +182,7 @@ ggsave(p, file=paste0(outPrefix,
 pvalDF <- subDF %>%
   group_by(Boundary) %>%
   do(w = wilcox.test(expCor ~ genotype, data=.)) %>%
-  summarise(Boundary, p=w$p.value)
+  summarise(Boundary, p = w$p.value)
 
 p <- ggplot(subDF, aes(x=Boundary, y=expCor, color=genotype)) + 
   geom_boxplot(lwd=1.5) + 
@@ -232,10 +231,10 @@ p <- ggplot(allDF, aes(x=TAD, y=expCor, color=genotype_group)) +
   labs(y="Expression Correlation [R]", x="")
 
 ggsave(p, 
-       file=paste0(
+       file = paste0(
          outPrefix, 
         ".expCor_by_genotype_and_groups_sameTAD_Dixon_mESC.boxplot.pdf"), 
-       w=7, h=7)
+       w = 7, h = 7)
 
 
 #-------------------------------------------------------------------------------
@@ -258,24 +257,25 @@ ggsave(p,
 subDF <- subset(tidyDF, tidyDF$conditions == CONDITIONS)
 
 
-p <- ggplot(subDF, aes(x=TAD, y=expCor, color=genotype)) + 
-  geom_boxplot(lwd=1.5) + 
-  facet_grid(TADtype ~ study+tissue) + 
+p <- ggplot(subDF, aes(x = TAD, y = expCor, color = genotype)) + 
+  geom_boxplot(lwd = 1.5) + 
+  facet_grid(TADtype ~ study + tissue) + 
   theme_bw() + 
-  theme(text = element_text(size=15), 
-        axis.text.x=element_text(angle = 45, hjust = 1), 
-        legend.position="bottom") + 
-  scale_color_manual(values=COL_ALL_GENOTYPE, guide_legend(title = "")) +
-  guides(fill=guide_legend(title="")) +
-  labs(y="Expression Correlation [R]", x="")
+  theme(text = element_text(size = 15), 
+        axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position = "bottom") + 
+  scale_color_manual(values = COL_ALL_GENOTYPE, guide_legend(title = "")) +
+  guides(fill = guide_legend(title = "")) +
+  labs(y = "Expression Correlation [R]", x = "")
 
 # geom_text(aes(label=paste0("p=", signif(p,2)), x=1.5, y=1.1), data=pvalDF, size=5) +
 # geom_text(aes(label=paste0("n=",n), y=-1), data=nDF) +
 # geom_text(aes(label=paste0("N=",nAll), y=-1.2), data=nDF)
 
 
-ggsave(p, file=paste0(outPrefix, 
-      ".all_groups.expCor_by_genotype_sameTAD_tadSource_GRB.boxplot.pdf"), w=7, h=7)
+ggsave(p, file = paste0(outPrefix, 
+      ".all_groups.expCor_by_genotype_sameTAD_tadSource_GRB.boxplot.pdf"), 
+      w = 7, h = 7)
 
 #===============================================================================
 # plot correlation in conditions against each other
@@ -295,7 +295,7 @@ nSub <- nrow(corDF)
 allDF <- rbind(corDF, corDF)
 
 levels(allDF$group) <- c(levels(allDF$group), "all")
-allDF$group[seq(nSub+1, 2*nSub)] <- "all"
+allDF$group[seq(nSub + 1, 2 * nSub)] <- "all"
 
 # assign names to colors
 names(COL_GROUP) <- levels(allDF$group)
@@ -305,20 +305,20 @@ names(COL_GROUP) <- levels(allDF$group)
 #-------------------------------------------------------------------------------
 
 # as density
-p <- ggplot(allDF, aes(x=WT, y=Rad21KO)) +
-  #geom_point(alpha=0.1) + 
+p <- ggplot(allDF, aes(x = WT, y = Rad21KO)) +
+  # geom_point(alpha = 0.1) + 
   #geom_density2d() + 
-  # stat_density2d(geom = "raster", aes(fill = ..density..), contour = FALSE) + 
-  # stat_density2d(geom = "raster", aes(alpha = ..density.., fill=group), contour = FALSE) +
-  stat_density2d(geom="tile", aes(fill = group, alpha=..density..), 
-                 contour=FALSE) + 
-  scale_fill_manual(values=COL_GROUP) +
-  facet_wrap(~group) +
+  # stat_density2d(geom = "raster", aes(fill = ..density..), contour = FALSE) +
+  # stat_density2d(geom = "raster", aes(alpha = ..density.., fill = group), contour = FALSE) +
+  stat_density2d(geom = "tile", aes(fill = group, alpha = ..density..),
+                 contour = FALSE) +
+  scale_fill_manual(values = COL_GROUP) +
+  facet_wrap(~ group) +
   #stat_density2d(aes(fill = ..level..), geom = "polygon") + 
   theme_bw() + 
-  theme(text = element_text(size=15), 
+  theme(text = element_text(size = 15), 
         axis.text.x=element_text(angle = 45, hjust = 1), 
-        legend.position="bottom") + 
+        legend.position = "bottom") + 
   xlab("Correlation in WT [R]") + ylab("Correlation in Rad21 KO [R]")
 
 ggsave(p, file=paste0(outPrefix, 
@@ -343,7 +343,7 @@ p <- ggplot(allDF, aes(x=WT, y=Rad21KO)) +
         legend.position="bottom") + 
   xlab("Correlation in WT [R]") + ylab("Correlation in Rad21 KO [R]")
 
-ggsave(p, file=paste0(outPrefix, 
+ggsave(p, file = paste0(outPrefix, 
                       ".expCor_WTvsKO_by_group.dotplot.png"), w=7, h=7)
 
 #-------------------------------------------------------------------------------
@@ -364,7 +364,6 @@ p <- ggplot(corDF, aes(x=WT, y=Rad21KO)) +
 
 ggsave(p, file=paste0(outPrefix, 
                       ".expCor_WTvsKO_by_TAD.pdf"), w=7, h=3.5)
-
 
 #-------------
 # as dotplot
