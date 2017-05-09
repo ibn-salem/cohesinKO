@@ -6,9 +6,7 @@
 require(genepair) # instally by: devtools::install_github("ibn-salem/genepair")
 require(biomaRt)  # to download data from ENSMBL
 require(TxDb.Mmusculus.UCSC.mm10.ensGene) # for mm10 gene models from ensembl
-require(tidyr)    # for gather() function
-require(dplyr)    # for matches() function
-require(ggplot2)  # for plotting
+require(tidyverse)    # for gather() function
 
 # load data 
 # source("R/cohesinKO.data.R")
@@ -25,12 +23,15 @@ seqInfo <- seqinfo(txdb)
 #-------------------------------------------------------------------------------
 allGenesGR <- genes(txdb)
 
-ensemblMouse = useMart(host="grch37.ensembl.org", biomart="ENSEMBL_MART_ENSEMBL",dataset="mmusculus_gene_ensembl")
+ensemblMouse = useMart(host = "grch37.ensembl.org", 
+                       biomart = "ENSEMBL_MART_ENSEMBL", 
+                       dataset = "mmusculus_gene_ensembl")
 
-protCodingENSG <- getBM(attributes="ensembl_gene_id", 
-                        mart=ensemblMouse, 
-                        filters=c("status", "biotype"), 
-                        values=list(status="KNOWN", biotype="protein_coding")
+protCodingENSG <- getBM(attributes = "ensembl_gene_id", 
+                        mart = ensemblMouse, 
+                        filters = c("status", "biotype"), 
+                        values = list(status = "KNOWN", 
+                                      biotype = "protein_coding")
                         )
 
 protCodingENSG <- unlist(protCodingENSG)
@@ -42,7 +43,7 @@ genesGR <- sort(genesGR)
 #-------------------------------------------------------------------------------
 # get all close gene pairs
 #-------------------------------------------------------------------------------
-pairDF <- getAllCisPairs(genesGR, maxDist=10^6, minDist=0)
+pairDF <- getAllCisPairs(genesGR, maxDist = 10^6, minDist = 0)
 
 # convert distance in absolut kb distances
 pairDF$dist <- abs(pairDF$dist) / 1000
@@ -73,8 +74,6 @@ paralogPairs <- data.frame(
 )
 
 # which pairs are paralogs
-para <- containsGenePairs(pairDF, paralogPairs)
-
 pairDF[,"paralog"] <- containsGenePairs(pairDF, paralogPairs)
 
 #-------------------------------------------------------------------------------
@@ -142,26 +141,93 @@ for(i in 1:length(tadList)){
 # add expression correlation
 #-------------------------------------------------------------------------------
 
+# get ordered list of gene ids
+genesDF <- tibble(id = genesGR$gene_id)
+
+# convert pairDF into a tibble for easiers handling and printig
+pairDF <- as_tibble(pairDF)
+
+# use only the replicate averaged expression data
+expCoDFlist = expCoDFlist[c("repWT", "repKO")]
+expSource = expSource %>% filter(name %in% c("repWT", "repKO"))
+
 # iterate over each expression data set
-for(i in 1:length(expCoDFlist)){
+for (i in 1:length(expCoDFlist)) {
   
   expDF <- expCoDFlist[[i]]
   
   # select matching rows in same order as in genesGR
-  subExpDF <- expDF[match(names(genesGR), rownames(expDF)),]
+  subExpDF <- expDF %>% 
+    right_join(genesDF, by = c("ensembl_gene_id" = "id")) %>% 
+    select(-external_gene_id, -ensembl_gene_id) %>% 
+    as.data.frame()
   
   # compute correlation for all pairs
-  expCor <- applyToClosePairs(pairDF, genesGR, subExpDF, fun=cor, maxDist=10^6)
+  expCor <- applyToClosePairs(pairDF, genesGR, subExpDF, fun = cor, maxDist = 10^6)
   
-  dataname <- paste(expSource[i,], collapse="|")
+  dataname <- paste(expSource[i, ], collapse = "|")
   pairDF[,paste0("expCor_", dataname)] <- expCor
    
+}
+
+#' coefficient of variation
+#' 
+#' Computes coefficient of variation (CV), also known as relative standard
+#' deviation (RSD). See
+#' \url{https://en.wikipedia.org/wiki/Coefficient_of_variation}.
+#' 
+#' @param x numeric vector
+cv <- function(x, na.rm = FALSE){
+  sd(x, na.rm = na.rm) / mean(x, na.rm = na.rm) * 100
+}
+
+
+# iterate over each expression data set
+for (i in 1:length(expCoDFlist)){
+  
+  expDF <- expCoDFlist[[i]]
+
+  # select matching rows in same order as in genesGR
+  subExpDF <- expDF %>% 
+    right_join(genesDF, by = c("ensembl_gene_id" = "id"))
+  
+  tidyExpDF <- subExpDF %>% 
+    gather(key = sample, value = exp, -external_gene_id, -ensembl_gene_id)
+  
+  genesSummaryDF <- tidyExpDF %>% 
+    group_by(ensembl_gene_id) %>% 
+    summarize(
+      n = n(),
+      mean_exp = mean(exp, na.rm = TRUE),
+      sd_exp = sd(exp, na.rm = TRUE),
+      cv = cv(exp, na.rm = TRUE)
+    ) %>% 
+    mutate(id = match(ensembl_gene_id, genesDF$id))
+  
+  # add cv of gene 1 and 2 in pair and abs diff
+  newPairDF <- select(pairDF, g1, g2) %>% 
+    left_join(select(genesSummaryDF,
+                     id,
+                     g1_mean_exp = mean_exp,
+                     g1_sd_exp = sd_exp,
+                     g1_cv = cv), by = c("g1" = "id")) %>% 
+    left_join(select(genesSummaryDF,
+                     id,
+                     g2_mean_exp = mean_exp,
+                     g2_sd_exp = sd_exp,
+                     g2_cv = cv), by = c("g2" = "id")) %>% 
+    mutate(cvDiff = abs(g2_cv - g1_cv))
+  
+  dataname <- paste(expSource[i,], collapse = "|")
+  pairDF[,paste0("cvDiff_", dataname)] <- newPairDF$cvDiff
+  
 }
 
 #-------------------------------------------------------------------------------
 # save pairDF 
 #-------------------------------------------------------------------------------
-save(pairDF, file="results/pairDF.Rdata")
+save(pairDF, file = "results/pairDF.Rdata")
+#load("results/pairDF.Rdata")
 
 #-------------------------------------------------------------------------------
 # create a single (tidy) data frame for all pairs with the following columns
@@ -182,30 +248,39 @@ save(pairDF, file="results/pairDF.Rdata")
 
 
 # transform pairDF data into tidyDF by the follwing opperations
-# - remove pralog column
 # - combine g1 and g2 to unique gpID column
-# - put gpID as first column
+# - put gpID as first column and remove pralog and single gID columns
 # - combine TAD_ and Boundary_ column
 # - separate type (TAD/Boundary) and TAD source
 # - spread type (TAD/Boundary) for diffrent sources in single column
 # - separate TADsource into study, tissue, and TADtype column
-# - make single column for expCor and gather by expSource column
-# - remove prefix "expCor_" from expSource lables
+# - combine expCor_ and expDiff columns
+# - separated (expCor/expDiff) into type and tadSource
+# - spread by (expCor/expDiff)
 # - separate expSource into cell, genotype, and condtion column
-tidyDF <- pairDF %>%
-  mutate(paralog = NULL) %>%
-  mutate(gpID = paste(g1, g2, sep="_")) %>%
-  mutate(g1 = NULL, g2 = NULL)  %>%
-  select(gpID, everything()) %>%
-  gather(key, value, matches("TAD_.|Boundary_.")) %>%
-  extract(key, c("type", "tadSource"),  "([[:alnum:]]+)_(.+)") %>%
-  spread(key=type, value=value) %>%
-  separate(col=tadSource, into=c("study", "tissue", "TADtype")) %>%
-  gather(expSource, expCor, matches("expCor_.")) %>%
-  mutate(expSource = gsub("^expCor_", "", expSource)) %>%
-  separate(expSource, c("cell", "genotype", "conditions"), sep="[/|]")
+# - remove redundant "expCor" prefix column
+
+tmpDF <- pairDF %>%
+  mutate(gpID = paste(g1, g2, sep = "_")) %>%
+  select(gpID, everything(), -paralog, -g1, -g2) %>% 
+  gather(tad_key, tad_value, starts_with("TAD_"), starts_with("Boundary_")) %>%
+  separate(tad_key, into = c("type", "tadSource"), sep = "_", extra = "merge") %>% 
+  spread(key = type, value = tad_value) %>%
+  separate(col = tadSource, into = c("study", "tissue", "TADtype"))
+  
+tidyDF <- tmpDF  %>% 
+  gather(exp_key, exp_value, matches("expCor_.|cvDiff_.")) %>%
+  separate(col = exp_key, into = c("exp_type", "expSource"), sep = "_") %>% 
+  spread(key = exp_type, value = exp_value) %>%
+  separate(expSource, into = c("DFname", "cell", "genotype", "conditions"), sep = "[|]") %>% 
+  select(-DFname)
+
+  
+  # gather(key = expSource, value = expCor, matches("expCor_.")) %>%
+  # mutate(expSource = gsub("^expCor_", "", expSource)) %>%
+  # separate(expSource, c("cell", "genotype", "conditions"), sep = "[/|]")
 
 # save tidyDF
-save(tidyDF, file="results/tidyDF.Rdata")
+save(tidyDF, file = "results/tidyDF.Rdata")
 
 
