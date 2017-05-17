@@ -179,15 +179,45 @@ save(pairDF, genesGR, file = "results/pairDF_genesGR_TMP_TAD.Rdata")
 #load("results/pairDF_genesGR_TMP_TAD.Rdata")
 
 #-------------------------------------------------------------------------------
-# add expression fold changes
+# generate a tidy data.frame with columns for TAD condition
 #-------------------------------------------------------------------------------
+
+# transform pairDF data into a tidy data frame (tidyPairDE) by the follwing opperations
+# - combine g1 and g2 to unique gpID column
+# - put gpID as first column and remove pralog and single gID columns
+# - combine TAD_ and Boundary_ column
+# - separate type (TAD/Boundary) and TAD source
+# - spread type (TAD/Boundary) for diffrent sources in single column
+# - separate TADsource into study, tissue, and TADtype column
+
+tidyPairsTad <- as_tibble(pairDF) %>%
+  mutate(gpID = paste(g1, g2, sep = "_")) %>%
+  select(gpID, everything(), -paralog) %>% 
+  gather(tad_key, tad_value, 
+         starts_with("TAD_"), 
+         starts_with("Boundary_"), 
+         starts_with("nBoundary_")) %>%
+  separate(tad_key, into = c("type", "tadSource"), sep = "_", extra = "merge") %>% 
+  spread(key = type, value = tad_value) %>%
+  separate(col = tadSource, into = c("study", "tissue", "TADtype"))
+
+# save temporary pairDF data frame
+save(tidyPairsTad, file = "results/tidyPairsTad.Rdata")
+#load("results/tidyPairsTad.Rdata")
+
+
+#===============================================================================
+# add expression fold changes
+#===============================================================================
 
 # select only needed column from tidyGeneDE data.frame
 subDE <- tidyGeneDE %>% 
-  select(EnsemblID, cond, log2FoldChange)
+  select(EnsemblID, cond, Genotype, Treatment, Time_hrs, log2FoldChange)
+
 
 # add ENSG ID to gene paird DF
-pairDF <- as_tibble(pairDF) %>% 
+tidyPairsDE <- as_tibble(pairDF) %>% 
+  select(-starts_with("TAD"), -starts_with("Boundary"), -starts_with("nBoundary")) %>% 
   mutate(
     ensg1 = genesGR$gene_id[g1],
     ensg2 = genesGR$gene_id[g2]
@@ -195,22 +225,38 @@ pairDF <- as_tibble(pairDF) %>%
   select(g1, g2, ensg1, ensg2, everything())
 
 # add fold change for both genes 
-pairDF <- pairDF %>% 
+tidyPairsDE <- tidyPairsDE %>% 
   left_join(subDE, by = c("ensg1" = "EnsemblID")) %>% 
   left_join(subDE, 
-            by = c("ensg2" = "EnsemblID", "cond" = "cond"),
+            by = c("ensg2" = "EnsemblID", 
+                   "cond" = "cond", 
+                   "Genotype" = "Genotype", 
+                   "Treatment" = "Treatment", 
+                   "Time_hrs" = "Time_hrs"),
             suffix = c("_1", "_2"))
 
-# add differnece and log2 ratio to pairDF for all conditions (combinations)
-pairDF <- pairDF %>% 
+# add differnece and log2 ratio to tidyPairsDE for all conditions (combinations)
+tidyPairsDE <- tidyPairsDE %>% 
   mutate(lfc_diff = abs(log2FoldChange_1 - log2FoldChange_2)) %>% 
   mutate(lfc_lfc = log2(log2FoldChange_1 / log2FoldChange_2))
 
-save(pairDF, genesGR, file = "results/pairDF_genesGR_TMP_DE.Rdata")
-#load("results/pairDF_genesGR_TMP_DE.Rdata")
+save(tidyPairsDE, file = "results/tidyPairsDE.Rdata")
+#load("results/tidyPairsDE.Rdata")
 
-#--------------------
+#===============================================================================
+# Combine TAD and DE fold change for pairs
+#===============================================================================
+tidyPairsTadDE <- tidyPairsTad %>%
+  left_join(
+    select(tidyPairsDE, -(ensg1:group)),
+    by = c("g1", "g2")
+  )
 
+save(tidyPairsTadDE, file = "results/tidyPairsTadDE.Rdata")
+#load("results/tidyPairsTadDE.Rdata")
+
+
+#---------------
 subPairDF <- pairDF %>% 
   filter(cond == "Rad21KO.LPS.2")
 
@@ -249,31 +295,6 @@ subPairDF %>%
 #--------------------
 
 
-
-#-------------------------------------------------------------------------------
-# generate a tidy data.frame with columns for TAD condition and DE conditions
-#-------------------------------------------------------------------------------
-
-# transform pairDF data into a tidy data frame (tidyPairDE) by the follwing opperations
-# - combine g1 and g2 to unique gpID column
-# - put gpID as first column and remove pralog and single gID columns
-# - combine TAD_ and Boundary_ column
-# - separate type (TAD/Boundary) and TAD source
-# - spread type (TAD/Boundary) for diffrent sources in single column
-# - separate TADsource into study, tissue, and TADtype column
-# - combine expCor_ and expDiff columns
-# - separated (expCor/expDiff) into type and tadSource
-# - spread by (expCor/expDiff)
-# - separate expSource into cell, genotype, and condtion column
-# - remove redundant "expCor" prefix column
-
-tmpDF <- pairDF %>%
-  mutate(gpID = paste(g1, g2, sep = "_")) %>%
-  select(gpID, everything(), -paralog, -g1, -g2) %>% 
-  gather(tad_key, tad_value, starts_with("TAD_"), starts_with("Boundary_")) %>%
-  separate(tad_key, into = c("type", "tadSource"), sep = "_", extra = "merge") %>% 
-  spread(key = type, value = tad_value) %>%
-  separate(col = tadSource, into = c("study", "tissue", "TADtype"))
 
 
 #-------------------------------------------------------------------------------
