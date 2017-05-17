@@ -255,48 +255,6 @@ tidyPairsTadDE <- tidyPairsTad %>%
 save(tidyPairsTadDE, file = "results/tidyPairsTadDE.Rdata")
 #load("results/tidyPairsTadDE.Rdata")
 
-
-#---------------
-subPairDF <- pairDF %>% 
-  filter(cond == "Rad21KO.LPS.2")
-
-subPairDF %>% ggplot(aes(x = lfc_diff)) + 
-  geom_histogram()
-
-subPairDF %>% ggplot(aes(x = lfc_lfc)) + 
-  geom_histogram()
-
-subPairDF %>% ggplot(aes(x = log2FoldChange_1)) + 
-  geom_histogram()
-
-subPairDF %>% 
-  ggplot(aes(x = log2FoldChange_1, y = log2FoldChange_2)) + 
-  geom_point(alpha = 0.2)
-
-
-
-subPairDF <- pairDF %>% 
-  filter(cond %in% c("Rad21KO.LPS.2", "WT.LPS.2"))
-
-subPairDF %>% 
-  ggplot(aes(color = cond, x = cond, y = lfc_diff)) + 
-  facet_grid(. ~ `Boundary_Rao2014|CH12|GRB`) + 
-  geom_boxplot()
-  # stat_ecdf(geom = "step", pad = FALSE)
-
-subPairDF %>% 
-  ggplot(aes(color = cond, x = cond, y = lfc_lfc)) + 
-  facet_grid(. ~ `Boundary_Rao2014|CH12|GRB`) + 
-  geom_boxplot()
-  # stat_ecdf(geom = "step", pad = FALSE)
-
-
-
-#--------------------
-
-
-
-
 #-------------------------------------------------------------------------------
 # add expression correlation
 #-------------------------------------------------------------------------------
