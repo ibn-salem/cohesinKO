@@ -11,6 +11,7 @@ require(tidyverse)    # for gather() function
 # load data 
 # source("R/cohesinKO.data.R")
 load("results/Exp_and_TAD_data.Rdata")
+load("results/tidyGeneDE.Rdata")
 
 #===============================================================================
 # get gene pairs
@@ -23,7 +24,9 @@ seqInfo <- seqinfo(txdb)
 #-------------------------------------------------------------------------------
 allGenesGR <- genes(txdb)
 
-ensemblMouse = useMart(host = "grch37.ensembl.org", 
+expGenes <- unique(tidyGeneDE$EnsemblID)
+
+ensemblMouse = useMart(host = "ensembl.org", 
                        biomart = "ENSEMBL_MART_ENSEMBL", 
                        dataset = "mmusculus_gene_ensembl")
 
@@ -32,12 +35,44 @@ protCodingENSG <- getBM(attributes = "ensembl_gene_id",
                         filters = c("status", "biotype"), 
                         values = list(status = "KNOWN", 
                                       biotype = "protein_coding")
-                        )
+)
 
 protCodingENSG <- unlist(protCodingENSG)
 
+#-------------------------------------------------------------------------------
+# analyse overlap of Gene IDs in different data sets----------------------------
+#-------------------------------------------------------------------------------
+vennList <- list(
+  expression = unique(tidyGeneDE$EnsemblID),
+  TxDb.Mmusculus.UCSC.mm10.ensGene = names(allGenesGR),
+  protCodingENSG = protCodingENSG
+)
 
-genesGR <- allGenesGR[allGenesGR$gene_id %in% protCodingENSG]
+require(VennDiagram)
+venn.diagram(
+  x = vennList, 
+  filename = "results/ENSG_overlap.venn.png",
+  imagetype = "png",
+  euler.d = TRUE, scaled = TRUE,
+  lwd = 3,
+  lty = 'blank',
+  fill = c("cornflowerblue", "green", "yellow"),
+  cex = 1.5,
+  fontface = "bold",
+  fontfamily = "sans",
+  cat.cex = 2,
+  cat.fontfamily = "sans",
+  rotation = 1
+)
+
+
+#-------------------------------------------------------------------------------
+# get only those genes that are in the expression data set and annotated as protein coding in ensembl
+#-------------------------------------------------------------------------------
+genesGR <- allGenesGR[
+  allGenesGR$gene_id %in% protCodingENSG & 
+    allGenesGR$gene_id %in% expGenes]
+
 genesGR <- sort(genesGR)
 
 #-------------------------------------------------------------------------------
@@ -60,17 +95,17 @@ paralogParisMouseAttr = c("ensembl_gene_id",
 
 # download all paralog pairs
 paralogPairsMouseALL = getBM(attributes=paralogParisMouseAttr, 
-                             filters=c("status", 
+                             filters = c("status", 
                                        "biotype", 
                                        "with_mmusculus_paralog"), 
-                             values=list(status="KNOWN", 
-                                         biotype="protein_coding",
-                                         with_mmusculus_paralog=TRUE),
-                             mart=ensemblMouse)
+                             values = list(status = "KNOWN", 
+                                         biotype = "protein_coding",
+                                         with_mmusculus_paralog = TRUE),
+                             mart = ensemblMouse)
 
 paralogPairs <- data.frame(
-  g1 <- match(paralogPairsMouseALL[,1], names(genesGR)),
-  g2 <- match(paralogPairsMouseALL[,2], names(genesGR))
+  g1 = match(paralogPairsMouseALL[,1], names(genesGR)),
+  g2 = match(paralogPairsMouseALL[,2], names(genesGR))
 )
 
 # which pairs are paralogs
@@ -117,7 +152,7 @@ pairDF[,"group"] <- factor(pairDF[,"group"], c("paralog", "sampled", "non-paralo
 pairGR <- getPairAsGR(pairDF, genesGR)
 
 # iterate over each TAD data set
-for(i in 1:length(tadList)){
+for (i in 1:length(tadList)) {
   
   # get annotation column name
   colname <- paste(as.character(tadSource[i,]), collapse = "|")
@@ -129,13 +164,117 @@ for(i in 1:length(tadList)){
                                              c("Same TAD", "Not same TAD"))
   
   # check if pairs cross a TAD boundary
-  crossBoundary <- countOverlaps(pairGR, boundaryList[[i]]) >= 1
+  crossBoundary <- countOverlaps(pairGR, boundaryList[[i]])
   pairDF[,paste0("Boundary_", colname)] <- factor(
-    crossBoundary, 
+    crossBoundary > 1, 
     c(TRUE, FALSE), 
     c("Cross Boundary", "Not cross Boundary"))
   
+  # number of boundaries between pairs
+  pairDF[,paste0("nBoundary_", colname)] <- crossBoundary
 }
+
+# save temporary pairDF data frame
+save(pairDF, genesGR, file = "results/pairDF_genesGR_TMP_TAD.Rdata")
+#load("results/pairDF_genesGR_TMP_TAD.Rdata")
+
+#-------------------------------------------------------------------------------
+# add expression fold changes
+#-------------------------------------------------------------------------------
+
+# select only needed column from tidyGeneDE data.frame
+subDE <- tidyGeneDE %>% 
+  select(EnsemblID, cond, log2FoldChange)
+
+# add ENSG ID to gene paird DF
+pairDF <- as_tibble(pairDF) %>% 
+  mutate(
+    ensg1 = genesGR$gene_id[g1],
+    ensg2 = genesGR$gene_id[g2]
+  ) %>% 
+  select(g1, g2, ensg1, ensg2, everything())
+
+# add fold change for both genes 
+pairDF <- pairDF %>% 
+  left_join(subDE, by = c("ensg1" = "EnsemblID")) %>% 
+  left_join(subDE, 
+            by = c("ensg2" = "EnsemblID", "cond" = "cond"),
+            suffix = c("_1", "_2"))
+
+# add differnece and log2 ratio to pairDF for all conditions (combinations)
+pairDF <- pairDF %>% 
+  mutate(lfc_diff = abs(log2FoldChange_1 - log2FoldChange_2)) %>% 
+  mutate(lfc_lfc = log2(log2FoldChange_1 / log2FoldChange_2))
+
+save(pairDF, genesGR, file = "results/pairDF_genesGR_TMP_DE.Rdata")
+#load("results/pairDF_genesGR_TMP_DE.Rdata")
+
+#--------------------
+
+subPairDF <- pairDF %>% 
+  filter(cond == "Rad21KO.LPS.2")
+
+subPairDF %>% ggplot(aes(x = lfc_diff)) + 
+  geom_histogram()
+
+subPairDF %>% ggplot(aes(x = lfc_lfc)) + 
+  geom_histogram()
+
+subPairDF %>% ggplot(aes(x = log2FoldChange_1)) + 
+  geom_histogram()
+
+subPairDF %>% 
+  ggplot(aes(x = log2FoldChange_1, y = log2FoldChange_2)) + 
+  geom_point(alpha = 0.2)
+
+
+
+subPairDF <- pairDF %>% 
+  filter(cond %in% c("Rad21KO.LPS.2", "WT.LPS.2"))
+
+subPairDF %>% 
+  ggplot(aes(color = cond, x = cond, y = lfc_diff)) + 
+  facet_grid(. ~ `Boundary_Rao2014|CH12|GRB`) + 
+  geom_boxplot()
+  # stat_ecdf(geom = "step", pad = FALSE)
+
+subPairDF %>% 
+  ggplot(aes(color = cond, x = cond, y = lfc_lfc)) + 
+  facet_grid(. ~ `Boundary_Rao2014|CH12|GRB`) + 
+  geom_boxplot()
+  # stat_ecdf(geom = "step", pad = FALSE)
+
+
+
+#--------------------
+
+
+
+#-------------------------------------------------------------------------------
+# generate a tidy data.frame with columns for TAD condition and DE conditions
+#-------------------------------------------------------------------------------
+
+# transform pairDF data into a tidy data frame (tidyPairDE) by the follwing opperations
+# - combine g1 and g2 to unique gpID column
+# - put gpID as first column and remove pralog and single gID columns
+# - combine TAD_ and Boundary_ column
+# - separate type (TAD/Boundary) and TAD source
+# - spread type (TAD/Boundary) for diffrent sources in single column
+# - separate TADsource into study, tissue, and TADtype column
+# - combine expCor_ and expDiff columns
+# - separated (expCor/expDiff) into type and tadSource
+# - spread by (expCor/expDiff)
+# - separate expSource into cell, genotype, and condtion column
+# - remove redundant "expCor" prefix column
+
+tmpDF <- pairDF %>%
+  mutate(gpID = paste(g1, g2, sep = "_")) %>%
+  select(gpID, everything(), -paralog, -g1, -g2) %>% 
+  gather(tad_key, tad_value, starts_with("TAD_"), starts_with("Boundary_")) %>%
+  separate(tad_key, into = c("type", "tadSource"), sep = "_", extra = "merge") %>% 
+  spread(key = type, value = tad_value) %>%
+  separate(col = tadSource, into = c("study", "tissue", "TADtype"))
+
 
 #-------------------------------------------------------------------------------
 # add expression correlation
