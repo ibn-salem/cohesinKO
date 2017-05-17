@@ -9,6 +9,8 @@ require(gdata)    # to parse .xlsx files (See: http://www.r-bloggers.com/read-ex
 require(TxDb.Mmusculus.UCSC.mm10.ensGene) # for seqifno object
 require(rtracklayer)  # to import bed files as GRanges object with import()
 require(tidyverse)  # for tidy data 
+require(readxl)   # to read xlsx files
+require(stringr)  # to manipulate strings
 
 source("R/GRanges.functions.R")
 source("R/screen.grbs.R")
@@ -17,18 +19,20 @@ source("R/screen.grbs.R")
 # parameters and input data files
 #=======================================================================
 
-COHESIN_KO_FILE <- "data/ICL/RNAseqWTRad21KOMacrophages.RData"
+COHESIN_KO_FILE <- "data/MRC_LMS/RNAseqWTRad21KOMacrophages.RData"
+COHESIN_KO_DE_FILE <- "data/MRC_LMS/DifferentialExpr_WTFL_LPS_vs_WTFL_UT_Merged_DESeq2.xlsx"
+
 RUDAN_TAD_FILE <- "data/Rudan2015/mmc2.xlsx"
 RAO_MOUSE_TAD_FILE <- "data/Rao2014/GSE63525_CH12-LX_Arrowhead_domainlist.txt.bed.mm9.bed.mm10.bed"
 DIXON_MOUSE_TAD_FILES = c(
-  Dixon_mESC="data/Dixon2012/mouse.mESC.mm9.bed.mm10.bed",
-  Dixon_cortex="data/Dixon2012/mouse.cortex.mm9.bed.mm10.bed"
+  Dixon_mESC = "data/Dixon2012/mouse.mESC.mm9.bed.mm10.bed",
+  Dixon_cortex = "data/Dixon2012/mouse.cortex.mm9.bed.mm10.bed"
 )
-GRB_FILE="data/Harmston2016/mm9_galGal4_70_50.final.bed.mm10.bed"
+GRB_FILE = "data/Harmston2016/mm9_galGal4_70_50.final.bed.mm10.bed"
 
 
 #=======================================================================
-# Parse data and reformat
+# Parse expression data and reformat
 #=======================================================================
 
 # load R file:
@@ -38,20 +42,72 @@ load(COHESIN_KO_FILE, envir = cohesinEnv)
 # convert to tibble and drop non-unique ENSG rows
 expDF <- as.tibble(cohesinEnv$FPKM.macrophages) %>% 
   distinct(ensembl_gene_id, .keep_all = TRUE)
-  
+
 # # set ENSG as row names and remove gene name and ID columns
 # row.names(expDF) <- expDF[,"ensembl_gene_id"]
 # rawExpDF <- expDF[,-(1:2)]
 
-# parse column data and add sample name
-cd <- as.tibble(cohesinEnv$colData) %>% 
-  mutate(sample = names(expDF)[3:ncol(expDF)])
+rownames(cohesinEnv$colData)
 
-expKO <- expDF %>% 
+# parse column data and add sample name
+cd <- as_tibble(cohesinEnv$colData) %>% 
+  mutate(sample = rownames(cohesinEnv$colData)) %>% 
+  separate(sample, into = c("rep_name", "condition"), sep="_", remove = FALSE) %>%
+  dplyr::select(-rep_name)
+
+expKO <- expDF %>%
   select(1:2, 2 + which(cd$Genotype == "Rad21KO"))
 
 expWT <- expDF %>% 
   select(1:2, 2 + which(cd$Genotype == "WT"))
+
+
+#=======================================================================
+# Parse DE data
+#=======================================================================
+pairsRow <- read_excel(COHESIN_KO_DE_FILE, n_max = 1, col_names = FALSE)
+pairs <- pairsRow %>% 
+  t() %>% as_tibble %>% 
+  drop_na(V1) %>% unlist()
+
+colRow <- read_excel(COHESIN_KO_DE_FILE, skip = 1, n_max = 1, col_names = FALSE)
+cols <- colRow %>% 
+  t() %>% as_tibble %>% distinct() %>% 
+  filter(! (V1 %in% c("EnsemblID", "GeneSymbol"))) %>% 
+  unlist()
+
+colNames <- paste(
+  rep(pairs, each = length(cols)),
+  rep(cols, length(pairs)),
+  sep = "."
+)
+
+deDF <- read_excel(COHESIN_KO_DE_FILE, 
+                   skip = 2, na = "NA", 
+                   col_names = c("EnsemblID", "GeneSymbol", colNames)) 
+
+# data frame with annotation for conditions
+conditionDF <- cd %>% 
+  select(condition, Genotype, Treatment, Time_hrs) %>% 
+  distinct()
+
+
+# make a tidy data.frame holding for each gene and pairwise condition the
+# expression forld change. 
+tidyGeneDE <- deDF %>% 
+  gather(key = type, value = value, matches(".*_Vs_.*")) %>% 
+  separate(type, into = c("comb", "measurement"), sep = "\\.") %>% 
+  spread(measurement, value) %>% 
+  separate(comb, into = c("cond1", "cond2"), sep = "_Vs_", remove = FALSE) %>% 
+  left_join(
+  conditionDF, 
+    by = c("cond1" = "condition")
+    ) %>%  
+  unite(Genotype, Treatment, Time_hrs, col = "cond", sep = ".", remove = FALSE)
+
+dir.create("results", showWarnings = FALSE)
+save(deDF, file = "results/deDF.Rdata")
+save(tidyGeneDE, file = "results/tidyGeneDE.Rdata")
 
 #=======================================================================
 # combine replicates
