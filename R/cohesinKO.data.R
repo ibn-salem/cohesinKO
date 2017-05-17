@@ -109,6 +109,9 @@ dir.create("results", showWarnings = FALSE)
 save(deDF, file = "results/deDF.Rdata")
 save(tidyGeneDE, file = "results/tidyGeneDE.Rdata")
 
+# load("results/deDE.Rdata")
+# load("results/tidyGeneDE.Rdata")
+
 #=======================================================================
 # combine replicates
 #=======================================================================
