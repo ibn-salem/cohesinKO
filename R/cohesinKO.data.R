@@ -47,8 +47,6 @@ expDF <- as.tibble(cohesinEnv$FPKM.macrophages) %>%
 # row.names(expDF) <- expDF[,"ensembl_gene_id"]
 # rawExpDF <- expDF[,-(1:2)]
 
-rownames(cohesinEnv$colData)
-
 # parse column data and add sample name
 cd <- as_tibble(cohesinEnv$colData) %>% 
   mutate(sample = rownames(cohesinEnv$colData)) %>% 
@@ -82,6 +80,7 @@ colNames <- paste(
   sep = "."
 )
 
+# parse excel file with differnetial expression data
 deDF <- read_excel(COHESIN_KO_DE_FILE, 
                    skip = 2, na = "NA", 
                    col_names = c("EnsemblID", "GeneSymbol", colNames)) 
@@ -98,12 +97,14 @@ tidyGeneDE <- deDF %>%
   gather(key = type, value = value, matches(".*_Vs_.*")) %>% 
   separate(type, into = c("comb", "measurement"), sep = "\\.") %>% 
   spread(measurement, value) %>% 
+  mutate(DE = factor(
+    padj <= 0.05 & (log2FoldChange >= 1 | log2FoldChange <= -1),
+    c(TRUE, FALSE),
+    c("DE", "Not DE"))) %>% 
   separate(comb, into = c("cond1", "cond2"), sep = "_Vs_", remove = FALSE) %>% 
-  left_join(
-  conditionDF, 
-    by = c("cond1" = "condition")
-    ) %>%  
-  unite(Genotype, Treatment, Time_hrs, col = "cond", sep = ".", remove = FALSE)
+  left_join(conditionDF, by = c("cond1" = "condition")) %>%  
+  unite(Genotype, Treatment, Time_hrs, col = "cond", sep = ".", remove = FALSE) %>% 
+  select(-cond1, -cond2)
 
 dir.create("results", showWarnings = FALSE)
 save(deDF, file = "results/deDF.Rdata")
@@ -239,8 +240,15 @@ tadSource <- tibble(
 )
 
 tadSource <- tadSource[rep(1:length(allTADs), 3), ]
-tadSource$GRB <- rep(c("all", "GRB", "nonGRB"), each=length(allTADs))
+tadSource$GRB <- rep(c("all", "GRB", "nonGRB"), each = length(allTADs))
 
+# add unique name to tadList and boundaryList
+names(tadList) <- paste0(names(tadList), "_", tadSource$GRB)
+names(boundaryList) <- names(tadList)
+
+tadSource <- tadSource %>% 
+  mutate(name = names(tadList)) %>% 
+  dplyr::select(name, everything())
 
 #-------------------------------------------------------------------------------
 # save as .Rdata file
