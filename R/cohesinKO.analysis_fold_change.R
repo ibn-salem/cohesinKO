@@ -29,7 +29,8 @@ tidyPairsTadDE <- singleTadSourceDF
 
 # select a single expression data set
 singleDEcomb <- tidyPairsTadDE$cond == "WT.LPS.2"
-singleDEgenotype <- tidyPairsTadDE$Treatment == "LPS" &
+
+singleDEcondition <- tidyPairsTadDE$Treatment == "LPS" &
   tidyPairsTadDE$Time_hrs == 2
 
 # select a single TAD data set
@@ -70,7 +71,7 @@ ggsave(p, file = paste0(
 #-------------------------------------------------------------------------------
 # use a single condition by Genotype
 #-------------------------------------------------------------------------------
-subDF <- subset(tidyPairsTadDE, singleDEgenotype & singleTadSource)
+subDF <- subset(tidyPairsTadDE, singleDEcondition & singleTadSource)
 
 # p <- ggplot(subDF, aes(x = log2FoldChange_1, y = log2FoldChange_2)) + 
 #   geom_point(alpha = 0.1)
@@ -93,7 +94,7 @@ ggsave(p, file = paste0(
 #===============================================================================
 
 # use a single condition
-subDF <- subset(tidyPairsTadDE, singleDEgenotype & singleTadSource)
+subDF <- subset(tidyPairsTadDE, singleDEcondition & singleTadSource)
 
 # %>% 
 # filter(abs(log2FoldChange_1) >= .5 & abs(log2FoldChange_2) >= .5)
@@ -136,6 +137,53 @@ ggsave(p, file = paste0(
   ".all_groups.lfc_diff_by_Genotype_Boundary_Time_Treatment.Rao2014.boxplot.pdf"), 
   w = 6, h = 6)
 
+
+#===============================================================================
+# compare fold changes by genotype and number of TAD using boxplots
+#===============================================================================
+
+# use a single condition
+subDF <- subset(tidyPairsTadDE, singleDEcomb & singleTadSource)
+
+
+# numberof boundaries distribution
+
+p <- ggplot(
+    count(subDF, boundaries = parse_integer(nBoundary)), 
+    aes(x = boundaries, y = n)
+    ) + 
+  geom_bar(stat = "identity") + 
+  geom_text(aes(label = n), vjust = -1) +
+  theme_bw() + 
+  theme(text = element_text(size = 15)) + 
+  guides(fill = guide_legend(title = "")) +
+  labs(x = "Number of boundaries between gene pairs", y = "Gene pairs")
+ggsave(p, file = paste0(outPrefix, ".all_groups.pairs_by_nBoundary_Rao2014_CH12.barplot.pdf"), 
+  w = 6, h = 6)
+
+
+# use a single condition
+subDF <- subset(tidyPairsTadDE, singleDEcondition & singleTadSource)
+
+
+p <- ggplot(subDF, aes(x = factor(parse_integer(subDF$nBoundary)), color = Genotype, y = lfc_diff)) + 
+  geom_boxplot() + 
+  # facet_grid(. ~ Boundary) + 
+  theme_bw() + 
+  theme(text = element_text(size = 15), 
+        axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position = "bottom") + 
+  scale_color_manual(values = COL_ALL_GENOTYPE, guide_legend(title = "")) +
+  guides(fill = guide_legend(title = "")) +
+  labs(y = "Fold change difference\n abs(lfc_g1 - lfc_g2)", 
+       x = "Number of boundaries between gene pairs")
+
+ggsave(p, file = paste0(
+  outPrefix, 
+  ".all_groups.lfc_diff_by_genotype_nBoundary_Rao2014_CH12.LPS_2.boxplot.pdf"), 
+  w = 6, h = 6)
+
+
 #===============================================================================
 # compare fold changes by TAD and genotype by distance with scatter plot
 #===============================================================================
@@ -156,7 +204,7 @@ ggsave(p, file = paste0(
 #-------------------------------------------------------------------------------
 # compare by genotype
 #-------------------------------------------------------------------------------
-subDF <- subset(tidyPairsTadDE, singleDEgenotype & singleTadSource)
+subDF <- subset(tidyPairsTadDE, singleDEcondition & singleTadSource)
 
 p <- ggplot(subDF, aes(x = dist, y = lfc_diff)) +
   stat_density2d(aes(fill = ..density..^0.25), geom = "tile", contour = FALSE) +
@@ -178,7 +226,7 @@ ggsave(p, file = paste0(
 #===============================================================================
 
 # use a single condition
-subDF <- subset(tidyPairsTadDE, singleDEgenotype & singleTadSource)
+subDF <- subset(tidyPairsTadDE, singleDEcondition & singleTadSource)
 
 p <- ggplot(subDF, aes(x = dist, y = lfc_diff, 
                        linetype = Genotype, fill = Boundary, col = Boundary)) + 
@@ -238,7 +286,7 @@ ggsave(p, file = paste0(
 #-------------------------------------------------------------------------------
 
 # use a single condition
-subDF <- subset(tidyPairsTadDE, singleDEgenotype & singleTadSource)
+subDF <- subset(tidyPairsTadDE, singleDEcondition & singleTadSource)
 
 p <- ggplot(subDF, aes(x = Genotype, color = cond, y = (log2FoldChange_1 / log2FoldChange_2))) + 
   geom_boxplot() + 
@@ -262,7 +310,7 @@ ggsave(p, file = paste0(
 #-------------------------------------------------------------------------------
 
 # use a single condition
-subDF <- subset(tidyPairsTadDE, singleDEgenotype & singleTadSource)
+subDF <- subset(tidyPairsTadDE, singleDEcondition & singleTadSource)
 
 p <- ggplot(subDF, aes(x = Genotype, color = cond, y = log2(log2FoldChange_1 / log2FoldChange_2))) + 
   geom_boxplot() + 
@@ -287,7 +335,7 @@ ggsave(p, file = paste0(
 #===============================================================================
 
 # use a single condition
-subDF <- subset(tidyPairsTadDE, singleDEgenotype & singleTadSource)
+subDF <- subset(tidyPairsTadDE, singleDEcondition & singleTadSource)
 
 p <- ggplot(subDF, aes(x = dist, y = log2(log2FoldChange_1 / log2FoldChange_2), 
                        linetype = Genotype, fill = Boundary, col = Boundary)) + 
