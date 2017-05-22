@@ -75,6 +75,9 @@ genesGR <- allGenesGR[
 
 genesGR <- sort(genesGR)
 
+# save genesGR
+save(genesGR, file = "results/genesGR.Rdata")
+
 #-------------------------------------------------------------------------------
 # get all close gene pairs
 #-------------------------------------------------------------------------------
@@ -256,6 +259,18 @@ save(tidyPairsTadDE, file = "results/tidyPairsTadDE.Rdata")
 #load("results/tidyPairsTadDE.Rdata")
 
 #-------------------------------------------------------------------------------
+# select a single TAD data set and subset to singleTadSourceDF
+#-------------------------------------------------------------------------------
+
+# select a single TAD data set
+singleTadSource <- tidyPairsTadDE$study == "Rao2014" &
+  tidyPairsTadDE$tissue == "CH12" &
+  tidyPairsTadDE$TADtype == "all"
+
+singleTadSourceDF <-  subset(tidyPairsTadDE, singleTadSource)
+save(singleTadSourceDF, file = "results/singleTadSourceDF.Rdata")
+
+#-------------------------------------------------------------------------------
 # add expression correlation
 #-------------------------------------------------------------------------------
 
@@ -402,3 +417,25 @@ tidyDF <- tmpDF  %>%
 save(tidyDF, file = "results/tidyDF.Rdata")
 
 
+#===============================================================================
+# get a data frame (TAD2geneDF) that maps each TAD to the containing genes 
+#===============================================================================
+
+
+# get TSS of all genes
+tssGR <- resize(genesGR, width = 1, fix = "start", ignore.strand = FALSE)
+
+hits <- map(tadList, findOverlaps, tssGR, ignore.strand = TRUE) %>% 
+  map(as.data.frame) %>% 
+  map(as_tibble) %>% 
+  bind_rows(.id = "name")
+
+# add TAD annotations and gene ID
+
+TAD2geneDF <- hits %>% 
+  left_join(tadSource, by = "name") %>% 
+  unite(TADid, name, queryHits, sep = "_", remove = FALSE) %>% 
+  mutate(ENSG = genesGR$gene_id[subjectHits])
+
+# save TAD2geneDF
+save(TAD2geneDF, file = "results/TAD2geneDF.Rdata")
