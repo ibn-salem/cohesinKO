@@ -164,6 +164,8 @@ ggsave(p, file = paste0(outPrefix,
 #-------------------------------------------------------------------------------
 # Analyse DE gens per TAD compared to randomized
 #-------------------------------------------------------------------------------
+
+
 subDF <- subset(tidyTAD2gene, singleDEcomb & singleTadorigen)
 
 # check number of DE genes per 
@@ -216,11 +218,60 @@ ggsave(p, file = paste0(outPrefix,
                         ".DEgenes_per_TAD_by_GRB_and_permutation.Rao2014_CH12.LPS_8.pdf"), w = 6, h = 6)
 
 
-#-------------------------
-# select a single TAD data set
-singleTadSource <- tidyTAD2gene$study == "Rao2014" &
-  tidyTAD2gene$tissue == "CH12" &
-  tidyTAD2gene$GRB == "all"
+#-------------------------------------------------------------------------------
+# Analyse DE gens per TAD compared to randomized fro all TAD data sets
+#-------------------------------------------------------------------------------
+subDF <- subset(tidyTAD2gene, singleDEcomb)
+
+# check number of DE genes per 
+# subDF %>% count(GRB, DE)
+
+# add randmized data column per GRB group
+realRandDF <- subDF %>% 
+  group_by(study, tissue, GRB) %>% 
+  do(mutate(., randDE = sample(DE, replace = TRUE))) %>% 
+  ungroup() %>% 
+  gather(DE, randDE, key = "expGroup", value = "DE") %>% 
+  mutate(expGroup = ifelse(expGroup == "DE", "actual", "permuted"))
+
+# subDF %>% count(GRB, randDE)
+
+countDF <- realRandDF %>%
+  group_by(TADid, study, tissue, GRB, expGroup, DE) %>% 
+  summarize(nGenesInt = n()) %>% 
+  mutate(nGenes = factor(
+    ifelse(nGenesInt <= 9, nGenesInt, "10+"),
+    c(parse_character(1:9), "10+")
+  )) %>% 
+  mutate(nGenesBinary = factor(
+    ifelse(nGenesInt == 1, "1", ">1")
+  ))
+
+# calculate fisher test on each group
+pValDF <- countDF %>% 
+  group_by(study, tissue, GRB, DE) %>% 
+  summarize(
+    p = fisher.test(nGenesBinary, expGroup)$p.value
+  )
+
+plotDF <- countDF %>%   
+  group_by(study, tissue, GRB, expGroup, DE, nGenesBinary) %>% 
+  summarize(n = n()) %>% 
+  mutate(percent = n / sum(n) * 100)
+
+p <- ggplot(plotDF, aes(x = nGenesBinary, y = percent)) +
+  geom_bar(aes(fill = expGroup), stat = "identity", position = "dodge") +
+  # geom_text(aes(label = n), angle = 90, hjust = 1.6, position = position_dodge(.9), size = 3) +
+  geom_text(aes(x = 1.5, y = 70, label = paste0("p = ", signif(p, 3))), data = pValDF) +
+  facet_grid(GRB ~ study + tissue + DE)  + 
+  theme_bw() +
+  theme(text = element_text(size = 15), legend.position = "bottom") + 
+  scale_fill_manual(values = COL_RAND) +
+  labs(x = "Genes per TAD", y =  "% of TADs")
+p
+ggsave(p, file = paste0(outPrefix, 
+                        ".DEgenes_per_TAD_by_GRB_and_permutation_and_TADsource.LPS_8.pdf"), w = 12, h = 6)
+
 
 
 #' 
