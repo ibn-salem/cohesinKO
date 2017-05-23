@@ -9,6 +9,7 @@ require(tidyverse)    # to format, sumarize and plot tidy data
 COL_COMB = brewer.pal(12, "Paired")[c(5,6,7,8,1,2,3,4)]
 COL_ALL_GENOTYPE = brewer.pal(12, "Paired")[c(10,9)]
 COL_TAD_GENOTYPE = brewer.pal(12, "Paired")[c(8,7,  4,3)] # orange, green
+COL_RAND = brewer.pal(8, "Accent")[c(7, 8)] # bown, gray
 
 ALPHA = 0.3
 
@@ -130,22 +131,35 @@ countDF <- subDF %>%
   group_by(TADid, GRB, Genotype, DE) %>% 
   summarize(nGenes = n()) %>% 
   mutate(nGenes = factor(
-    ifelse(nGenes < 10, nGenes, ">= 10"),
-    c(parse_character(1:9), ">= 10")
+    ifelse(nGenes < 10, nGenes, "10+"),
+    c(parse_character(1:9), "10+")
   )) %>% 
+  mutate(nGenesBinary = factor(
+    ifelse(nGenes == 1, "1", ">1")
+  ))
+
+plotDF <- countDF %>% 
   group_by(GRB, Genotype, DE, nGenes) %>% 
   summarize(n = n()) %>% 
   mutate(percent = n / sum(n) * 100)
 
-p <- ggplot(countDF, aes(x = nGenes, y = percent , fill = Genotype)) +
-  geom_bar(stat = "identity", position = "dodge") +
+# calculate fisher test on each group
+pValDF <- countDF %>% 
+  group_by(GRB, DE) %>% 
+  summarize(
+    p = fisher.test(nGenesBinary, Genotype)$p.value
+  )
+
+p <- ggplot(plotDF, aes(x = nGenes, y = percent)) +
+  geom_bar(aes(fill = Genotype), stat = "identity", position = "dodge") +
+  geom_text(aes(x = 5, y = 70, label = paste0("p = ", signif(p, 3))), data = pValDF) +
   facet_grid(GRB ~ DE)  + 
   theme_bw() +
   theme(text = element_text(size = 15), legend.position = "bottom") + 
-  labs(x = "Genes per TAD", y =  "%")
+  labs(x = "Genes per TAD", y =  "% of TADs")
 
 ggsave(p, file = paste0(outPrefix, 
-                        ".DEgenes_per_TAD_by_GRB_and_Genotype.LPS_8.pdf"), w = 6, h = 6)
+                        ".DEgenes_per_TAD_by_GRB_and_Genotype.Rao2014_CH12.LPS_8.pdf"), w = 6, h = 6)
 
 #-------------------------------------------------------------------------------
 # Analyse DE gens per TAD compared to randomized
@@ -158,7 +172,7 @@ subDF <- subset(tidyTAD2gene, singleDEcomb & singleTadorigen)
 # add randmized data column per GRB group
 realRandDF <- subDF %>% 
   group_by(GRB) %>% 
-  do(mutate(., randDE = sample(DE))) %>% 
+  do(mutate(., randDE = sample(DE, replace = TRUE))) %>% 
   ungroup() %>% 
   gather(DE, randDE, key = "expGroup", value = "DE") %>% 
   mutate(expGroup = ifelse(expGroup == "DE", "actual", "permuted"))
@@ -172,23 +186,43 @@ countDF <- realRandDF %>%
     ifelse(nGenes <= 9, nGenes, "10+"),
     c(parse_character(1:9), "10+")
   )) %>% 
+  mutate(nGenesBinary = factor(
+    ifelse(nGenes == 1, "1", ">1")
+  ))
+
+# calculate fisher test on each group
+pValDF <- countDF %>% 
+  group_by(GRB, DE) %>% 
+  summarize(
+    p = fisher.test(nGenesBinary, expGroup)$p.value
+  )
+
+plotDF <- countDF %>%   
   group_by(GRB, expGroup, DE, nGenes) %>% 
   summarize(n = n()) %>% 
   mutate(percent = n / sum(n) * 100)
 
-p <- ggplot(countDF, aes(x = nGenes, y = percent , fill = expGroup)) +
-  geom_bar(stat = "identity", position = "dodge") +
+p <- ggplot(plotDF, aes(x = nGenes, y = percent)) +
+  geom_bar(aes(fill = expGroup), stat = "identity", position = "dodge") +
+  # geom_text(aes(label = n), angle = 90, hjust = 1.6, position = position_dodge(.9), size = 3) +
+  geom_text(aes(x = 5, y = 70, label = paste0("p = ", signif(p, 3))), data = pValDF) +
   facet_grid(GRB ~ DE)  + 
   theme_bw() +
   theme(text = element_text(size = 15), legend.position = "bottom") + 
-  labs(x = "Genes per TAD", y =  "%")
-
+  scale_fill_manual(values = COL_RAND) +
+  labs(x = "Genes per TAD", y =  "% of TADs")
 
 ggsave(p, file = paste0(outPrefix, 
-                        ".DEgenes_per_TAD_by_GRB_and_permutation.LPS_8.pdf"), w = 6, h = 6)
+                        ".DEgenes_per_TAD_by_GRB_and_permutation.Rao2014_CH12.LPS_8.pdf"), w = 6, h = 6)
 
 
 #-------------------------
+# select a single TAD data set
+singleTadSource <- tidyTAD2gene$study == "Rao2014" &
+  tidyTAD2gene$tissue == "CH12" &
+  tidyTAD2gene$GRB == "all"
+
+
 #' 
 #' #' Get fisher.test pvalue from a tidy matrix
 #' fisherP <- function(df, freq, colx, coly){
