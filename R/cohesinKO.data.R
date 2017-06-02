@@ -97,10 +97,17 @@ tidyGeneDE <- deDF %>%
   gather(key = type, value = value, matches(".*_Vs_.*")) %>% 
   separate(type, into = c("comb", "measurement"), sep = "\\.") %>% 
   spread(measurement, value) %>% 
-  mutate(DE = factor(
-    padj <= 0.05 & (log2FoldChange >= 1 | log2FoldChange <= -1),
-    c(TRUE, FALSE),
-    c("DE", "Not DE"))) %>% 
+  mutate(
+    DE = factor(
+      padj <= 0.05 & (log2FoldChange > 1 | log2FoldChange < -1),
+      c(TRUE, FALSE),
+      c("DE", "Not DE")),
+    reg = factor(
+      ifelse(DE == "DE", 
+        ifelse(log2FoldChange > 1, "up", "down"),
+        "unchanged"),
+      c("up", "down", "unchanged"))
+    ) %>% 
   separate(comb, into = c("cond1", "cond2"), sep = "_Vs_", remove = FALSE) %>% 
   left_join(conditionDF, by = c("cond1" = "condition")) %>%  
   unite(Genotype, Treatment, Time_hrs, col = "cond", sep = ".", remove = FALSE) %>% 
