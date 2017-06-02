@@ -215,7 +215,7 @@ save(tidyPairsTad, file = "results/tidyPairsTad.Rdata")
 
 # select only needed column from tidyGeneDE data.frame
 subDE <- tidyGeneDE %>% 
-  select(EnsemblID, cond, Genotype, Treatment, Time_hrs, log2FoldChange)
+  select(EnsemblID, cond, Genotype, Treatment, Time_hrs, log2FoldChange, DE)
 
 
 # add ENSG ID to gene paird DF
@@ -228,7 +228,7 @@ tidyPairsDE <- as_tibble(pairDF) %>%
   select(g1, g2, ensg1, ensg2, everything())
 
 # add fold change for both genes 
-tidyPairsDE <- tidyPairsDE %>% 
+tidyPairsDEtmp <- tidyPairsDE %>% 
   left_join(subDE, by = c("ensg1" = "EnsemblID")) %>% 
   left_join(subDE, 
             by = c("ensg2" = "EnsemblID", 
@@ -239,9 +239,15 @@ tidyPairsDE <- tidyPairsDE %>%
             suffix = c("_1", "_2"))
 
 # add differnece and log2 ratio to tidyPairsDE for all conditions (combinations)
-tidyPairsDE <- tidyPairsDE %>% 
+tidyPairsDE <- tidyPairsDEtmp %>% 
   mutate(lfc_diff = abs(log2FoldChange_1 - log2FoldChange_2)) %>% 
-  mutate(lfc_lfc = log2(log2FoldChange_1 / log2FoldChange_2))
+  mutate(lfc_lfc = log2(log2FoldChange_1 / log2FoldChange_2)) %>% 
+  mutate(DE_pair = ifelse(
+    is.na(DE_1) | is.na(DE_2),
+    NA,
+    paste(DE_1, DE_2, sep = "/")
+  )) %>% 
+  mutate(DE_pair = ifelse(DE_pair == "Not DE/DE", "DE/Not DE", DE_pair))
 
 save(tidyPairsDE, file = "results/tidyPairsDE.Rdata")
 #load("results/tidyPairsDE.Rdata")
