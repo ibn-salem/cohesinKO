@@ -4,7 +4,7 @@
 #'
 
 require(genepair) # instally by: devtools::install_github("ibn-salem/genepair")
-require(biomaRt)  # to download data from ENSMBL
+# require(biomaRt)  # to download data from ENSMBL
 require(TxDb.Mmusculus.UCSC.mm10.ensGene) # for mm10 gene models from ensembl
 require(tidyverse)    # for gather() function
 
@@ -26,11 +26,11 @@ allGenesGR <- genes(txdb)
 
 expGenes <- unique(tidyGeneDE$EnsemblID)
 
-ensemblMouse = useMart(host = "ensembl.org", 
+ensemblMouse = biomaRt::useMart(host = "ensembl.org", 
                        biomart = "ENSEMBL_MART_ENSEMBL", 
                        dataset = "mmusculus_gene_ensembl")
 
-protCodingENSG <- getBM(attributes = "ensembl_gene_id", 
+protCodingENSG <- biomaRt::getBM(attributes = "ensembl_gene_id", 
                         mart = ensemblMouse, 
                         filters = c("status", "biotype"), 
                         values = list(status = "KNOWN", 
@@ -97,7 +97,7 @@ paralogParisMouseAttr = c("ensembl_gene_id",
                           "mmusculus_paralog_ds")     
 
 # download all paralog pairs
-paralogPairsMouseALL = getBM(attributes=paralogParisMouseAttr, 
+paralogPairsMouseALL = biomaRt::getBM(attributes=paralogParisMouseAttr, 
                              filters = c("status", 
                                        "biotype", 
                                        "with_mmusculus_paralog"), 
@@ -215,7 +215,7 @@ save(tidyPairsTad, file = "results/tidyPairsTad.Rdata")
 
 # select only needed column from tidyGeneDE data.frame
 subDE <- tidyGeneDE %>% 
-  select(EnsemblID, cond, Genotype, Treatment, Time_hrs, log2FoldChange, DE)
+  select(EnsemblID, cond, Genotype, Treatment, Time_hrs, log2FoldChange, DE, reg)
 
 
 # add ENSG ID to gene paird DF
@@ -238,16 +238,36 @@ tidyPairsDEtmp <- tidyPairsDE %>%
                    "Time_hrs" = "Time_hrs"),
             suffix = c("_1", "_2"))
 
+#' Combine two vectors of same factors while ensuring that the samler one is first.
+#' 
+comb_sorted <- function(x, y, sep = "_"){
+  
+  # assume factors as input
+  stopifnot(is.factor(x) & is.factor(y))
+  # assume same set of levels
+  stopifnot(all(levels(x) == levels(y)))
+  
+  firstSmall <- as.ordered(x) <= as.ordered(y)
+  
+  first <- ifelse(firstSmall, as.character(x), as.character(y))
+  second <- ifelse(firstSmall, as.character(y), as.character(x))
+  
+  stringr::str_c(first, second, sep = sep)
+}
+
+
 # add differnece and log2 ratio to tidyPairsDE for all conditions (combinations)
 tidyPairsDE <- tidyPairsDEtmp %>% 
-  mutate(lfc_diff = abs(log2FoldChange_1 - log2FoldChange_2)) %>% 
-  mutate(lfc_lfc = log2(log2FoldChange_1 / log2FoldChange_2)) %>% 
-  mutate(DE_pair = ifelse(
-    is.na(DE_1) | is.na(DE_2),
-    NA,
-    paste(DE_1, DE_2, sep = "/")
-  )) %>% 
-  mutate(DE_pair = ifelse(DE_pair == "Not DE/DE", "DE/Not DE", DE_pair))
+  mutate(
+    lfc_diff = abs(log2FoldChange_1 - log2FoldChange_2),
+    lfc_lfc = log2(log2FoldChange_1 / log2FoldChange_2),
+    DE_pair = ifelse(
+      is.na(DE_1) | is.na(DE_2),
+      NA,
+      paste(DE_1, DE_2, sep = "/")),
+    DE_pair = ifelse(DE_pair == "Not DE/DE", "DE/Not DE", DE_pair),
+    reg_pair = comb_sorted(reg_1, reg_2)
+  )
 
 save(tidyPairsDE, file = "results/tidyPairsDE.Rdata")
 #load("results/tidyPairsDE.Rdata")
@@ -276,9 +296,9 @@ singleTadSource <- tidyPairsTadDE$study == "Rao2014" &
 singleTadSourceDF <-  subset(tidyPairsTadDE, singleTadSource)
 save(singleTadSourceDF, file = "results/singleTadSourceDF.Rdata")
 
-#-------------------------------------------------------------------------------
+#===============================================================================
 # add expression correlation
-#-------------------------------------------------------------------------------
+#===============================================================================
 
 # get ordered list of gene ids
 genesDF <- tibble(id = genesGR$gene_id)
