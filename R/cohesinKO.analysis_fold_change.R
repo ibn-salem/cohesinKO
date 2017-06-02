@@ -20,6 +20,7 @@ outPrefix <- "results/v03.foldChange"
 
 # load data:
 #load("results/tidyPairsTadDE.Rdata")
+# to load less data in memory, load only the single TAD source data frame
 load("results/singleTadSourceDF.Rdata")
 tidyPairsTadDE <- singleTadSourceDF
 
@@ -270,6 +271,108 @@ ggsave(p, file = paste0(
   ".all_groups.lfc_diff_by_distance_genotype_Boundary_treatment_Rao2014_CH12.LPS_2.smooth.pdf"),
   w = 6, h = 6)
 
+
+
+#-------------------------------------------------------------------------------
+# count number of pairs in DEpair groups
+#-------------------------------------------------------------------------------
+subDF <- subset(tidyPairsTadDE, singleTadSource)
+
+countDF <- subDF %>% 
+  group_by(Boundary, Genotype, Treatment, Time_hrs, DE_pair) %>% 
+  summarize(n = n())
+
+p <- ggplot(countDF, aes(x = DE_pair, y = n, linetype = Genotype, fill = Boundary)) +
+  geom_bar(stat = "identity", position = "dodge", color = "blue") +
+  facet_grid(Treatment ~ Time_hrs + Genotype) +
+  scale_color_manual(values = COL_TAD_GENOTYPE[c(1,3)]) +
+  scale_fill_manual(values = COL_TAD_GENOTYPE[c(1,3)]) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "", y = "Number of gene pairs")
+ggsave(p, file = paste0(
+  outPrefix,
+  ".all_groups.number_of_pairs_by_genotype_Boundary_treatment_DEpair.Rao2014_CH12.barplot.pdf"),
+  w = 6, h = 6)
+
+
+
+#-------------------------------------------------------------------------------
+# use a single TAD data set but all expression conditions and DEpair groups
+#-------------------------------------------------------------------------------
+subDF <- subset(tidyPairsTadDE, singleTadSource)
+
+p <- ggplot(subDF, aes(x = dist, y = lfc_diff,
+                       linetype = Genotype, fill = Boundary, col = Boundary)) +
+  geom_smooth(alpha = ALPHA) +
+  facet_grid(Treatment ~ Time_hrs + DE_pair) +
+  guides(col = guide_legend(title = ""), fill = guide_legend(title = ""),
+         linetype = guide_legend(title = "")) +
+  scale_color_manual(values = COL_TAD_GENOTYPE[c(1,3)]) +
+  scale_fill_manual(values = COL_TAD_GENOTYPE[c(1,3)]) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(
+    x = "Distance between gene pairs [kb]",
+    y = "Fold change difference\n abs(lfc_g1 - lfc_g2)")
+p
+
+ggsave(p, file = paste0(
+  outPrefix,
+  ".all_groups.lfc_diff_by_distance_genotype_Boundary_treatment_DEpair.Rao2014_CH12.smooth.pdf"),
+  w = 12, h = 6)
+
+
+#-------------------------------------------------------------------------------
+# use a single TAD data set but all expression conditions but only for "DE/Not DE" pairs
+#-------------------------------------------------------------------------------
+subDF <- subset(tidyPairsTadDE, singleTadSource) %>% 
+  filter(DE_pair == "DE/Not DE")
+
+p <- ggplot(subDF, aes(x = dist, y = lfc_diff,
+                       linetype = Genotype, fill = Boundary, col = Boundary)) +
+  geom_smooth(alpha = ALPHA) +
+  facet_grid(Treatment ~ Time_hrs + DE_pair) +
+  guides(col = guide_legend(title = ""), fill = guide_legend(title = ""),
+         linetype = guide_legend(title = "")) +
+  scale_color_manual(values = COL_TAD_GENOTYPE[c(1,3)]) +
+  scale_fill_manual(values = COL_TAD_GENOTYPE[c(1,3)]) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(
+    x = "Distance between gene pairs [kb]",
+    y = "Fold change difference\n abs(lfc_g1 - lfc_g2)")
+
+ggsave(p, file = paste0(
+  outPrefix,
+  ".all_groups.lfc_diff_by_distance_genotype_Boundary_treatment_DEpair_vs_notDE.Rao2014_CH12.LPS_2.smooth.pdf"),
+  w = 6, h = 6)
+
+
+#-------------------------------------------------------------------------------
+# use a single TAD data set but all expression conditions but only for "DE/DE" pairs
+#-------------------------------------------------------------------------------
+subDF <- subset(tidyPairsTadDE, singleTadSource) %>% 
+  filter(DE_pair == "DE/DE")
+
+p <- ggplot(subDF, aes(x = dist, y = lfc_diff,
+                       linetype = Genotype, fill = Boundary, col = Boundary)) +
+  geom_smooth(alpha = ALPHA) +
+  facet_grid(Treatment ~ Time_hrs + DE_pair) +
+  guides(col = guide_legend(title = ""), fill = guide_legend(title = ""),
+         linetype = guide_legend(title = "")) +
+  scale_color_manual(values = COL_TAD_GENOTYPE[c(1,3)]) +
+  scale_fill_manual(values = COL_TAD_GENOTYPE[c(1,3)]) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(
+    x = "Distance between gene pairs [kb]",
+    y = "Fold change difference\n abs(lfc_g1 - lfc_g2)")
+
+ggsave(p, file = paste0(
+  outPrefix,
+  ".all_groups.lfc_diff_by_distance_genotype_Boundary_treatment_DEDE.Rao2014_CH12.LPS_2.smooth.pdf"),
+  w = 6, h = 6)
 
 
 #===============================================================================
