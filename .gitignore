@@ -19,3 +19,7 @@ bin/*
 
 # ignore results
 results/*
+
+# ignore some temporary files
+README.html
+slides_v03.*
