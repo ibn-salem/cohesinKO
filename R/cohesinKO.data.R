@@ -53,12 +53,8 @@ cd <- as_tibble(cohesinEnv$colData) %>%
   separate(sample, into = c("rep_name", "condition"), sep="_", remove = FALSE) %>%
   dplyr::select(-rep_name)
 
-expKO <- expDF %>%
-  select(1:2, 2 + which(cd$Genotype == "Rad21KO"))
-
-expWT <- expDF %>% 
-  select(1:2, 2 + which(cd$Genotype == "WT"))
-
+expKO <- expDF %>% select(1:2, contains("FL"))
+expWT <- expDF %>% select(1:2, contains("WT"))
 
 #=======================================================================
 # Parse DE data
