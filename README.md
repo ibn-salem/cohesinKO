@@ -1,5 +1,7 @@
 # cohesinKO
 
+We hope this to be a package containing functions for analyzing cohesin KO data
+
 ## Script
 
 Run scripts in the following order:
@@ -16,9 +18,9 @@ Run scripts in the following order:
 the main dataset which are created and used by the scripts are.
 
 
-- **tidyGeneDE** contains differntial gene expression per gene for all conditions
+- **tidyGeneDE** contains differential gene expression per gene for all conditions
 
-- **tidyPairsTadDE** contains gene pairs wit TAD annotation for differnt TAD groups
+- **tidyPairsTadDE** contains gene pairs with TAD annotation for different TAD groups
 
 - **tidyPairsDE** contains gene pairs with expression information
 
