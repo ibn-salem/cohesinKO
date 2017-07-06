@@ -429,8 +429,10 @@ tmpDF <- pairDF %>%
   select(gpID, everything(), -paralog, -g1, -g2) %>% 
   gather(tad_key, tad_value, starts_with("TAD_"), starts_with("Boundary_")) %>%
   separate(tad_key, into = c("type", "tadSource"), sep = "_", extra = "merge") %>% 
-  spread(key = type, value = tad_value) %>%
-  separate(col = tadSource, into = c("study", "tissue", "TADtype"))
+  spread(key = type, value = tad_value) %>% 
+  separate(col = tadSource, 
+           into = c("study_tissue", "study", "tissue", "TADtype"), 
+           sep = "\\|")
   
 tidyDF <- tmpDF  %>% 
   gather(exp_key, exp_value, matches("expCor_.|cvDiff_.")) %>%
