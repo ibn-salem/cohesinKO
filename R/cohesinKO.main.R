@@ -217,7 +217,6 @@ tidyPairsTad <- as_tibble(pairDF) %>%
 save(tidyPairsTad, file = "results/tidyPairsTad.Rdata")
 #load("results/tidyPairsTad.Rdata")
 
-
 #===============================================================================
 # add expression fold changes
 #===============================================================================
@@ -263,12 +262,10 @@ comb_sorted <- function(x, y, sep = "_"){
   stringr::str_c(first, second, sep = sep)
 }
 
-
 # add differnece and log2 ratio to tidyPairsDE for all conditions (combinations)
 tidyPairsDE <- tidyPairsDEtmp %>% 
   mutate(
     lfc_diff = abs(log2FoldChange_1 - log2FoldChange_2),
-    lfc_lfc = log2(log2FoldChange_1 / log2FoldChange_2),
     DE_pair = ifelse(
       is.na(DE_1) | is.na(DE_2),
       NA,
