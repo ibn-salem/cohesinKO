@@ -3,6 +3,7 @@
 #'
 #'
 
+require(VennDiagram)
 require(genepair) # instally by: devtools::install_github("ibn-salem/genepair")
 # require(biomaRt)  # to download data from ENSMBL
 require(TxDb.Mmusculus.UCSC.mm10.ensGene) # for mm10 gene models from ensembl
@@ -48,7 +49,6 @@ vennList <- list(
   protCodingENSG = protCodingENSG
 )
 
-require(VennDiagram)
 venn.diagram(
   x = vennList, 
   filename = "results/ENSG_overlap.venn.png",
@@ -131,9 +131,9 @@ sampWeights <- weightsByBin(distPara, distNonPara, distBreaks)
 # sample from non-paralog pairs with weights
 sampIdx <- sample(
     which(!pairDF$paralog), 
-    size=10000,
-    prob=sampWeights,
-    replace=FALSE)
+    size = 10000,
+    prob = sampWeights,
+    replace = FALSE)
 
 # add group column to pairDF data.frame
 pairDF[,"group"] <- ifelse(pairDF[,"paralog"], "paralog", "non-paralog")
@@ -161,7 +161,7 @@ for (i in 1:length(tadList)) {
   colname <- paste(as.character(tadSource[i,]), collapse = "|")
   
   # check whether paired genes are in the same TAD
-  inTAD <- countOverlaps(pairGR, tadList[[i]], type="within") >= 1
+  inTAD <- countOverlaps(pairGR, tadList[[i]], type = "within") >= 1
   pairDF[,paste0("TAD_", colname)] <- factor(inTAD, 
                                              c(TRUE, FALSE), 
                                              c("Same TAD", "Not same TAD"))
@@ -187,11 +187,12 @@ save(pairDF, genesGR, file = "results/pairDF_genesGR_TMP_TAD.Rdata")
 
 # transform pairDF data into a tidy data frame (tidyPairDE) by the follwing opperations
 # - combine g1 and g2 to unique gpID column
-# - put gpID as first column and remove pralog and single gID columns
-# - combine TAD_ and Boundary_ column
-# - separate type (TAD/Boundary) and TAD source
-# - spread type (TAD/Boundary) for diffrent sources in single column
-# - separate TADsource into study, tissue, and TADtype column
+# - put gpID as first column and remove pralog column
+# - combine TAD_*, Boundary_* and nBoundary_* columns
+# - separate type (TAD/Boundary/nBoundary) and TAD source
+# - spread type (TAD/Boundary/nBoundary) for diffrent sources in single column
+# - separate TADsource into study_tissue, study, tissue, and TADtype column
+# - remove redundant study_tissue column
 
 tidyPairsTad <- as_tibble(pairDF) %>%
   mutate(gpID = paste(g1, g2, sep = "_")) %>%
@@ -200,9 +201,16 @@ tidyPairsTad <- as_tibble(pairDF) %>%
          starts_with("TAD_"), 
          starts_with("Boundary_"), 
          starts_with("nBoundary_")) %>%
-  separate(tad_key, into = c("type", "tadSource"), sep = "_", extra = "merge") %>% 
+  separate(tad_key, 
+           into = c("type", "tadSource"), 
+           sep = "_", 
+           extra = "merge") %>% 
   spread(key = type, value = tad_value) %>%
-  separate(col = tadSource, into = c("study", "tissue", "TADtype"))
+  separate(
+    col = tadSource, 
+    into = c("study_tissue", "study", "tissue", "TADtype"), 
+    sep = "\\|") %>% 
+  select(-study_tissue)
 
 # save temporary pairDF data frame
 save(tidyPairsTad, file = "results/tidyPairsTad.Rdata")
@@ -216,7 +224,6 @@ save(tidyPairsTad, file = "results/tidyPairsTad.Rdata")
 # select only needed column from tidyGeneDE data.frame
 subDE <- tidyGeneDE %>% 
   select(EnsemblID, cond, Genotype, Treatment, Time_hrs, log2FoldChange, DE, reg)
-
 
 # add ENSG ID to gene paird DF
 tidyPairsDE <- as_tibble(pairDF) %>% 
