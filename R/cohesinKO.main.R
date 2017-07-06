@@ -210,6 +210,7 @@ tidyPairsTad <- as_tibble(pairDF) %>%
     col = tadSource, 
     into = c("study_tissue", "study", "tissue", "TADtype"), 
     sep = "\\|") %>% 
+  mutate(nBoundary = parse_integer(nBoundary)) %>% 
   select(-study_tissue)
 
 # save temporary pairDF data frame
