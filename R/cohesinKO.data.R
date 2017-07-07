@@ -219,7 +219,7 @@ allTADs = GRangesList(
 GRB <- rtracklayer::import.bed(GRB_FILE)
 
 # screen TADs for overlap with GRBs
-allTADs <- lapply(allTADs, screen.grbs, GRB)
+allTADs <- mclapply(allTADs, screen.grbs, GRB, mc.cores = 8)
 
 GRB_TADs <- map(allTADs, ~ .[.$class == "GRB"])
 nonGRB_TADs <- map(allTADs, ~ .[.$class == "nonGRB"])
