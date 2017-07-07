@@ -164,7 +164,7 @@ tssDF <- tssDF %>%
 realExp <- expDat %>% 
   select( ensembl_gene_id, DE) %>% 
   mutate(
-    group = "expression",
+    group = "DiffExp",
     rand_rep = 1
     )
 
