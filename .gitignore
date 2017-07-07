@@ -1,4 +1,4 @@
-# do not upload expression data
+# do not upload expression and Hi-C data
 data/ICL/RNAseqWTRad21KOMacrophages.RData
 data/MRC_LMS/*
 data/Harmston2016/*
