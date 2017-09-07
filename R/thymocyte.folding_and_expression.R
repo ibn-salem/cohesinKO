@@ -16,7 +16,7 @@ require(tidyverse)    # for gather() function
 
 TAD_FILES <- c(
   "stage_1" = "data/MRC_LMS/thymocyte/TAD_custom/TADs_list_40kb_iced_isHIC_CD69nDP1.bed",
-  "stage_2" = "data/MRC_LMS/thymocyte/TAD_custom/TADs_list_40kb_iced_isHIC_CD4SPR1.bed"
+  "stage_4" = "data/MRC_LMS/thymocyte/TAD_custom/TADs_list_40kb_iced_isHIC_CD4SPR1.bed"
 )
 
 CD_FILES <- c(
@@ -27,7 +27,7 @@ CD_FILES <- c(
 
 DE_GENES_FIEL <- "data/MRC_LMS/thymocyte/RNAseq_custom/04_CD69nDPWT1-3_vs_CD69pCD4SPWT1-2.csv"
 
-outPrefix <- "results/thymocyte.TADs_and_DE_by_stage"
+outPrefix <- "results/thymocyte.TADs_and_DE_by_stage.v02"
 dir.create("results", showWarnings = FALSE)
 
 #===============================================================================
@@ -117,7 +117,7 @@ expDat <- expDat %>%
 # get genes from ENSEMBL for mm9
 #-------------------------------------------------------------------------------
 # Ensmbl archive with mm9 genome: http://may2012.archive.ensembl.org
-ensemblmm9 <- useMart(host = "may2012.archive.ensembl.org", 
+ensemblmm9 <- useMart(host = "may2012.archive.ensembl.org",
                          biomart = "ENSEMBL_MART_ENSEMBL", 
                          dataset = "mmusculus_gene_ensembl", 
                          verbose = FALSE)
@@ -257,15 +257,36 @@ ggsave(p, filename = paste0(outPrefix, ".DEgeens_inDomain.n.barplot.pdf"), w = 5
 # Analyse overalp of TADs
 #===============================================================================
 
-unique_1 <- sum(countOverlaps(tadList[[1]], tadList[[2]], ignore.strand = TRUE) == 0)
-unique_2 <- sum(countOverlaps(tadList[[2]], tadList[[1]], ignore.strand = TRUE) == 0)
+# get numer of TADs without any overlap
+unique_TAD_1 <- sum(countOverlaps(tadList[[1]], tadList[[2]], ignore.strand = TRUE) == 0)
+unique_TAD_4 <- sum(countOverlaps(tadList[[2]], tadList[[1]], ignore.strand = TRUE) == 0)
 
-ol <- findOverlaps(tadList[[1]], tadList[[2]], ignore.strand = TRUE)
+# compute reciprocal overlap of TADs
+recipTADhits <- reciprocalOverlaps(tadList[[1]], tadList[[2]], 0.5, ignore.strand = TRUE)
+unique50_TAD_1 = sum(countLnodeHits(recipTADhits) == 0)
+unique50_TAD_4 = sum(countRnodeHits(recipTADhits) == 0)
+
+
+# same for contact domains
+cd1 <- domainList[["cd_stag1_rep1"]]
+cd2 <- domainList[["cd_stag4_rep1"]]
+
+unique_CD_1 <- sum(countOverlaps(cd1, cd2, ignore.strand = TRUE) == 0)
+unique_CD_4 <- sum(countOverlaps(cd2, cd1, ignore.strand = TRUE) == 0)
+
+# compute reciprocal overlap of TADs
+recipCDhits <- reciprocalOverlaps(cd1, cd2, 0.5, ignore.strand = TRUE)
+unique50_CD_1 = sum(countLnodeHits(recipCDhits) == 0)
+unique50_CD_4 = sum(countRnodeHits(recipCDhits) == 0)
+
+
+# ol <- findOverlaps(tadList[[1]], tadList[[2]], ignore.strand = TRUE)
 
 tad_stats_DF <- tibble(
   name = names(tadList),
   n =  map_int(tadList, length),
-  n_uniq = c(unique_1, unique_2),
+  n_uniq_TAD = c(unique_TAD_1, unique_TAD_4),
+  n_uniq50_TAD = c(unique50_TAD_1, unique50_TAD_4),
   width_median = map_dbl(tadList, function(gr) median(width(gr))),
   width_mean = map_dbl(tadList, function(gr) mean(width(gr))),
   sd_median = map_dbl(tadList, function(gr) sd(width(gr))),
@@ -275,7 +296,84 @@ tad_stats_DF <- tibble(
   genome_cov_percent = 100 * genome_cov / sum(as.numeric(width(GRanges(seqInfo))))
 )
 
-write_tsv(tad_stats_DF, paste(outPrefix, ".tad_stats.DF"))
+write_tsv(tad_stats_DF, paste(outPrefix, ".tad_stats.tsv"))
 
+#-------------------------------------------------------------------------------
+# Group genes by beeing in stag1 TAD but not in stage2
+#-------------------------------------------------------------------------------
 
+# for each gene check if it is inside TAD in both, no or only one stage
+tssTADchangeDF <- tssDF %>% 
+  mutate(
+    TAD = case_when(
+      stage_1 & ! stage_4 ~ "stage_1_only",
+      stage_4 & ! stage_1 ~ "stage_4_only",
+      stage_1 & stage_4 ~ "both_inside",
+      !stage_1 & !stage_4 ~ "both_outside"
+    ),
+    CD = case_when(
+      cd_stag1_rep1 & ! cd_stag4_rep1 ~ "stage_1_only",
+      cd_stag4_rep1 & ! cd_stag1_rep1 ~ "stage_4_only",
+      cd_stag1_rep1 & cd_stag4_rep1 ~ "both_inside",
+      !cd_stag1_rep1 & ! cd_stag4_rep1 ~ "both_outside"
+    )) %>% 
+  mutate(
+    TAD = factor(TAD, c("stage_1_only", "stage_4_only", "both_inside", "both_outside")),
+    CD = factor(CD, c("stage_1_only", "stage_4_only", "both_inside", "both_outside"))
+  ) %>% 
+  gather(key = "TAD_type", value = "change", TAD, CD)
+
+# count number of DE genes and percent for each group
+changeCountDF <- tssTADchangeDF %>% 
+  group_by(group, rand_rep, TAD_type, change, DE) %>% 
+  summarize(
+    n = n()
+  ) %>% 
+  mutate(
+    percent = n / sum(n) * 100
+  ) 
+
+# combine counts by replicates
+combinedChangeDF <- changeCountDF %>% 
+  group_by(group, TAD_type, change, DE) %>% 
+  summarize(
+    n_mean = mean(n, na.rm = TRUE),
+    n_sd = sd(n, na.rm = TRUE),
+    percent_mean = mean(percent, na.rm = TRUE),
+    percent_sd = sd(percent, na.rm = TRUE)
+  ) 
+
+write_tsv(combinedChangeDF, paste(outPrefix, ".DEgeens_changed_TADs.tsv"))
+
+# percent
+p <- ggplot(combinedChangeDF, aes(x = change, y = percent_mean, fill = group)) + 
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  geom_text(aes(label = signif(percent_mean, 2)), 
+            position = position_dodge(width = .9),
+            vjust = -.6) + 
+  geom_errorbar(aes(ymin = percent_mean - percent_sd, ymax = percent_mean + percent_sd),
+                size = .3,    # Thinner lines
+                width = .2,
+                position = position_dodge(.9)) +
+  facet_grid(TAD_type ~ DE, scales = "free_y") +
+  theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set1") + 
+  labs(y = "Percent of genes")
+ggsave(p, filename = paste0(outPrefix, ".DEgeens_changed_TADs.percent.barplot.pdf"), w = 6, h = 6)
+
+# percent
+p <- ggplot(combinedChangeDF, aes(x = change, y = n_mean, fill = group)) + 
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  geom_text(aes(label = signif(n_mean, 2)), 
+            position = position_dodge(width = .9),
+            angle = 90, hjust = "inward") + 
+  geom_errorbar(aes(ymin = n_mean - n_sd, ymax = n_mean + n_sd),
+                size = .3,    # Thinner lines
+                width = .2,
+                position = position_dodge(.9)) +
+  facet_grid(TAD_type ~ DE, scales = "free_y") +
+  theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set1") + 
+  labs(y = "Number of genes")
+ggsave(p, filename = paste0(outPrefix, ".DEgeens_changed_TADs.n.barplot.pdf"), w = 6, h = 6)
 
